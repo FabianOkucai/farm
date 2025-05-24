@@ -167,7 +167,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         onTap: () {
                           NavigationHelper.navigateTo(
                             context,
-                            const AddFarmScreen(
+                            const SelectFarmScreen(
                               returnToNotes: false,
                             ),
                           );
@@ -196,23 +196,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         icon: AssetPaths.dashboardNotes,
                         color: const Color(0xFFE0F7E0),
                         onTap: () {
-                          final farmProvider = Provider.of<FarmProvider>(
-                            context,
-                            listen: false,
-                          );
-                          if (farmProvider.selectedFarm != null) {
-                            NavigationHelper.navigateTo(
-                              context,
-                              const FarmNotesScreen(),
-                            );
-                          } else {
-                            NavigationHelper.navigateTo(
-                              context,
-                              const SelectFarmScreen(
-                                returnToNotes: true,
-                              ),
-                            );
-                          }
+                          NavigationHelper.navigateTo(
+                              context, const FarmNotesScreen());
                         },
                       ),
                     ],
