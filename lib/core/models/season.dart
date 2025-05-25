@@ -1,8 +1,4 @@
-enum SeasonStatus {
-  planning,
-  active,
-  completed
-}
+enum SeasonStatus { active, completed, cancelled }
 
 class Season {
   final String id;
@@ -11,10 +7,8 @@ class Season {
   final DateTime startDate;
   final DateTime endDate;
   final SeasonStatus status;
-  final List<String> noteIds;
-  final List<String> taskIds;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final int currentMonth;
+  final DateTime lastUpdated;
 
   Season({
     required this.id,
@@ -23,41 +17,9 @@ class Season {
     required this.startDate,
     required this.endDate,
     required this.status,
-    required this.noteIds,
-    required this.taskIds,
-    required this.createdAt,
-    required this.updatedAt,
+    required this.currentMonth,
+    required this.lastUpdated,
   });
-
-  factory Season.fromJson(Map<String, dynamic> json) {
-    return Season(
-      id: json['id'],
-      farmId: json['farmId'],
-      name: json['name'],
-      startDate: DateTime.parse(json['startDate']),
-      endDate: DateTime.parse(json['endDate']),
-      status: SeasonStatus.values.byName(json['status']),
-      noteIds: List<String>.from(json['noteIds']),
-      taskIds: List<String>.from(json['taskIds']),
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'farmId': farmId,
-      'name': name,
-      'startDate': startDate.toIso8601String(),
-      'endDate': endDate.toIso8601String(),
-      'status': status.name,
-      'noteIds': noteIds,
-      'taskIds': taskIds,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
-    };
-  }
 
   Season copyWith({
     String? id,
@@ -66,10 +28,8 @@ class Season {
     DateTime? startDate,
     DateTime? endDate,
     SeasonStatus? status,
-    List<String>? noteIds,
-    List<String>? taskIds,
-    DateTime? createdAt,
-    DateTime? updatedAt,
+    int? currentMonth,
+    DateTime? lastUpdated,
   }) {
     return Season(
       id: id ?? this.id,
@@ -78,10 +38,36 @@ class Season {
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
       status: status ?? this.status,
-      noteIds: noteIds ?? this.noteIds,
-      taskIds: taskIds ?? this.taskIds,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
+      currentMonth: currentMonth ?? this.currentMonth,
+      lastUpdated: lastUpdated ?? this.lastUpdated,
     );
+  }
+
+  factory Season.fromJson(Map<String, dynamic> json) {
+    return Season(
+      id: json['id'] as String,
+      farmId: json['farm_id'] as String,
+      name: json['name'] as String,
+      startDate: DateTime.parse(json['start_date'] as String),
+      endDate: DateTime.parse(json['end_date'] as String),
+      status: SeasonStatus.values.firstWhere(
+        (e) => e.toString() == 'SeasonStatus.${json['status']}',
+      ),
+      currentMonth: json['current_month'] as int,
+      lastUpdated: DateTime.parse(json['last_updated'] as String),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'farm_id': farmId,
+      'name': name,
+      'start_date': startDate.toIso8601String(),
+      'end_date': endDate.toIso8601String(),
+      'status': status.toString().split('.').last,
+      'current_month': currentMonth,
+      'last_updated': lastUpdated.toIso8601String(),
+    };
   }
 }

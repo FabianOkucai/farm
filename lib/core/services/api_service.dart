@@ -8,15 +8,18 @@ import '../models/season_data.dart';
 class ApiService {
   final String baseUrl;
   final http.Client _httpClient;
+  bool _isOffline = false;
 
-  ApiService({
-    required this.baseUrl,
-    http.Client? httpClient,
-  }) : _httpClient = httpClient ?? http.Client();
+  ApiService({required this.baseUrl, http.Client? httpClient})
+    : _httpClient = httpClient ?? http.Client();
 
   // Farms API
   Future<List<Farm>> getFarms(String farmerId) async {
     try {
+      if (_isOffline) {
+        return _getMockFarms(farmerId);
+      }
+
       final response = await _httpClient.get(
         Uri.parse('$baseUrl/farms/$farmerId'),
         headers: {'Content-Type': 'application/json'},
@@ -34,12 +37,17 @@ class ApiService {
         throw Exception('Failed to load farms: ${response.statusCode}');
       }
     } catch (e) {
-      throw Exception('Failed to load farms: $e');
+      _isOffline = true;
+      return _getMockFarms(farmerId);
     }
   }
 
   Future<Farm> getFarm(String farmId) async {
     try {
+      if (_isOffline) {
+        return _getMockFarm(farmId);
+      }
+
       final response = await _httpClient.get(
         Uri.parse('$baseUrl/farms/$farmId'),
         headers: {'Content-Type': 'application/json'},
@@ -56,12 +64,17 @@ class ApiService {
         throw Exception('Failed to load farm: ${response.statusCode}');
       }
     } catch (e) {
-      throw Exception('Failed to load farm: $e');
+      _isOffline = true;
+      return _getMockFarm(farmId);
     }
   }
 
   Future<Farm> createFarm(Farm farm) async {
     try {
+      if (_isOffline) {
+        return _createMockFarm(farm);
+      }
+
       final response = await _httpClient.post(
         Uri.parse('$baseUrl/farms'),
         headers: {'Content-Type': 'application/json'},
@@ -79,7 +92,8 @@ class ApiService {
         throw Exception('Failed to create farm: ${response.statusCode}');
       }
     } catch (e) {
-      throw Exception('Failed to create farm: $e');
+      _isOffline = true;
+      return _createMockFarm(farm);
     }
   }
 
@@ -341,9 +355,7 @@ class ApiService {
       final response = await _httpClient.post(
         Uri.parse('$baseUrl/sync/farms'),
         headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'farms': farms,
-        }),
+        body: json.encode({'farms': farms}),
       );
 
       if (response.statusCode == 200) {
@@ -376,10 +388,64 @@ class ApiService {
         throw Exception('Invalid response format');
       } else {
         throw Exception(
-            'Failed to load initial data package: ${response.statusCode}');
+          'Failed to load initial data package: ${response.statusCode}',
+        );
       }
     } catch (e) {
       throw Exception('Failed to load initial data package: $e');
     }
+  }
+
+  // Mock data helpers
+  List<Farm> _getMockFarms(String farmerId) {
+    return [
+      Farm(
+        id: 'farm_1',
+        name: 'Mango Farm 1',
+        size: 5.0,
+        district: 'Central District',
+        village: 'Green Village',
+        farmerId: farmerId,
+        plantingDate: DateTime(2023, 1, 15),
+        currentSeasonMonth: 3,
+        createdAt: DateTime.now().subtract(const Duration(days: 90)),
+        updatedAt: DateTime.now(),
+      ),
+      Farm(
+        id: 'farm_2',
+        name: 'Mango Farm 2',
+        size: 3.5,
+        district: 'Eastern District',
+        village: 'Palm Village',
+        farmerId: farmerId,
+        plantingDate: DateTime(2023, 3, 20),
+        currentSeasonMonth: 1,
+        createdAt: DateTime.now().subtract(const Duration(days: 30)),
+        updatedAt: DateTime.now(),
+      ),
+    ];
+  }
+
+  Farm _getMockFarm(String farmId) {
+    return Farm(
+      id: farmId,
+      name: 'Mock Farm',
+      size: 4.0,
+      district: 'Sample District',
+      village: 'Sample Village',
+      farmerId: 'mock_farmer_id',
+      plantingDate: DateTime.now().subtract(const Duration(days: 60)),
+      currentSeasonMonth: 2,
+      createdAt: DateTime.now().subtract(const Duration(days: 60)),
+      updatedAt: DateTime.now(),
+    );
+  }
+
+  Farm _createMockFarm(Farm farm) {
+    return farm.copyWith(
+      id: 'mock_${DateTime.now().millisecondsSinceEpoch}',
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
   }
 }

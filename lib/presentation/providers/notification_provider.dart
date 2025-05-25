@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../core/services/notification_service.dart';
+import '../../core/services/notification_generator.dart';
+import '../../core/services/daily_checker_service.dart';
+import '../../core/utils/local_storage.dart';
 
 class NotificationItem {
   final String id;
@@ -7,6 +10,7 @@ class NotificationItem {
   final String body;
   final DateTime timestamp;
   final bool isRead;
+  final String? seasonId;
 
   NotificationItem({
     required this.id,
@@ -14,17 +18,39 @@ class NotificationItem {
     required this.body,
     required this.timestamp,
     this.isRead = false,
+    this.seasonId,
   });
+
+  factory NotificationItem.fromJson(Map<String, dynamic> json) {
+    return NotificationItem(
+      id: json['id'] as String,
+      title: json['title'] as String,
+      body: json['body'] as String,
+      timestamp: DateTime.parse(json['timestamp'] as String),
+      isRead: json['is_read'] as bool? ?? false,
+      seasonId: json['season_id'] as String?,
+    );
+  }
 }
 
 class NotificationProvider extends ChangeNotifier {
   final NotificationService _notificationService;
+  final NotificationGenerator _notificationGenerator;
+  final DailyCheckerService _dailyCheckerService;
+  final LocalStorage _localStorage;
   final List<NotificationItem> _notifications = [];
   bool _isLoading = false;
   String? _error;
 
-  NotificationProvider({required NotificationService notificationService})
-    : _notificationService = notificationService {
+  NotificationProvider({
+    required NotificationService notificationService,
+    required NotificationGenerator notificationGenerator,
+    required DailyCheckerService dailyCheckerService,
+    required LocalStorage localStorage,
+  }) : _notificationService = notificationService,
+       _notificationGenerator = notificationGenerator,
+       _dailyCheckerService = dailyCheckerService,
+       _localStorage = localStorage {
     initialize();
   }
 
@@ -38,7 +64,13 @@ class NotificationProvider extends ChangeNotifier {
 
     try {
       await _notificationService.initialize();
-      // TODO: Load saved notifications from local storage
+
+      // Start daily checker service
+      _dailyCheckerService.startDailyCheck();
+
+      // Load notifications from local storage
+      await _loadNotifications();
+
       _isLoading = false;
       notifyListeners();
     } catch (e) {
@@ -46,6 +78,18 @@ class NotificationProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  Future<void> _loadNotifications() async {
+    final history = await _notificationGenerator.getNotificationHistory();
+
+    _notifications.clear();
+    _notifications.addAll(
+      history.map((json) => NotificationItem.fromJson(json)).toList(),
+    );
+
+    // Sort by timestamp, newest first
+    _notifications.sort((a, b) => b.timestamp.compareTo(a.timestamp));
   }
 
   Future<void> showTaskNotification({
@@ -109,13 +153,8 @@ class NotificationProvider extends ChangeNotifier {
   Future<void> markAsRead(String notificationId) async {
     final index = _notifications.indexWhere((n) => n.id == notificationId);
     if (index != -1) {
-      _notifications[index] = NotificationItem(
-        id: _notifications[index].id,
-        title: _notifications[index].title,
-        body: _notifications[index].body,
-        timestamp: _notifications[index].timestamp,
-        isRead: true,
-      );
+      await _notificationGenerator.markAsRead(notificationId);
+      await _loadNotifications(); // Reload to get updated state
       notifyListeners();
     }
   }
@@ -123,6 +162,7 @@ class NotificationProvider extends ChangeNotifier {
   Future<void> cancelAllNotifications() async {
     try {
       await _notificationService.cancelAllNotifications();
+      await _localStorage.clear();
       _notifications.clear();
       notifyListeners();
     } catch (e) {
@@ -135,9 +175,7 @@ class NotificationProvider extends ChangeNotifier {
     try {
       final index = _notifications.indexWhere((n) => n.id == notificationId);
       if (index != -1) {
-        await _notificationService.cancelNotification(
-          int.parse(notificationId),
-        );
+        await _localStorage.remove('notification_$notificationId');
         _notifications.removeAt(index);
         notifyListeners();
       }
@@ -150,5 +188,11 @@ class NotificationProvider extends ChangeNotifier {
   void clearError() {
     _error = null;
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _dailyCheckerService.stopDailyCheck();
+    super.dispose();
   }
 }

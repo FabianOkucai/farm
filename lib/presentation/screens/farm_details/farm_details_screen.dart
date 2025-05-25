@@ -14,10 +14,7 @@ import '../../../core/utils/form_validators.dart';
 class FarmDetailsScreen extends StatefulWidget {
   final String farmId;
 
-  const FarmDetailsScreen({
-    Key? key,
-    required this.farmId,
-  }) : super(key: key);
+  const FarmDetailsScreen({Key? key, required this.farmId}) : super(key: key);
 
   @override
   State<FarmDetailsScreen> createState() => _FarmDetailsScreenState();
@@ -55,8 +52,9 @@ class _FarmDetailsScreenState extends State<FarmDetailsScreen> {
     final farmProvider = Provider.of<FarmProvider>(context, listen: false);
 
     try {
-      final farm =
-          farmProvider.farms.firstWhere((farm) => farm.id == widget.farmId);
+      final farm = farmProvider.farms.firstWhere(
+        (farm) => farm.id == widget.farmId,
+      );
       _populateFields(farm);
     } catch (e) {
       await farmProvider.selectFarm(widget.farmId);
@@ -128,256 +126,241 @@ class _FarmDetailsScreenState extends State<FarmDetailsScreen> {
     final farmProvider = Provider.of<FarmProvider>(context);
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundGrey,
+      backgroundColor: Colors.grey[100],
       appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
         title: const Text(
-          Strings.farmDetails,
+          'Farm Details',
           style: TextStyle(
             color: Colors.black,
             fontWeight: FontWeight.bold,
+            fontSize: 24,
           ),
         ),
-        backgroundColor: Colors.white,
-        elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () {
-            NavigationHelper.navigateToReplacement(
-              context,
-              const DashboardScreen(),
-            );
-          },
+          onPressed: () => Navigator.pop(context),
         ),
-        actions: [
-          IconButton(
-            icon: Icon(
-              _isEditing ? Icons.close : Icons.edit,
-              color: AppColors.primaryGreen,
-            ),
-            onPressed: _isEditing ? _toggleEditing : _toggleEditing,
-          ),
-        ],
       ),
-      body: farmProvider.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : farmProvider.selectedFarm == null
-              ? const Center(child: Text('Farm not found'))
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: Form(
-                    key: _formKey,
+      body: Consumer<FarmProvider>(
+        builder: (context, farmProvider, child) {
+          final farm = farmProvider.selectedFarm;
+
+          if (farm == null) {
+            return const Center(child: Text('Farm not found'));
+          }
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Farm Overview Card
+                Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: Colors.grey[200]!),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Farm Image
-                        Center(
-                          child: Container(
-                            width: double.infinity,
-                            height: 200,
-                            decoration: BoxDecoration(
-                              color:
-                                  AppColors.primaryLightGreen.withOpacity(0.3),
-                              borderRadius: BorderRadius.circular(12),
-                              image: const DecorationImage(
-                                image: AssetImage('assets/images/mango.png'),
-                                fit: BoxFit.cover,
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppColors.primaryGreen.withOpacity(0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.agriculture,
+                                color: AppColors.primaryGreen,
+                                size: 24,
                               ),
                             ),
-                            child: _isEditing
-                                ? Center(
-                                    child: IconButton(
-                                      icon: const Icon(
-                                        Icons.camera_alt,
-                                        color: Colors.white,
-                                        size: 32,
-                                      ),
-                                      onPressed: () {
-                                        // Add image picker functionality
-                                      },
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    farm.name,
+                                    style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
                                     ),
-                                  )
-                                : null,
-                          ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '${farm.size} acres',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 24),
-
-                        // Farm Details Section
-                        _buildSectionTitle('Farm Information'),
-                        const SizedBox(height: 16),
-
-                        CustomTextField(
-                          label: Strings.farmName,
-                          controller: _nameController,
-                          isEnabled: _isEditing,
-                          validator: (value) =>
-                              value!.isEmpty ? 'Farm name is required' : null,
-                        ),
-                        const SizedBox(height: 16),
-
-                        CustomTextField(
-                          label: 'Farm Size (hectares)',
-                          controller: _sizeController,
-                          keyboardType: TextInputType.number,
-                          isEnabled: _isEditing,
-                          validator: (value) =>
-                              FormValidators.validateNumber(value, 'Farm Size'),
-                        ),
-                        const SizedBox(height: 16),
-
-                        CustomTextField(
-                          label: 'District',
-                          controller: _districtController,
-                          isEnabled: _isEditing,
-                          validator: (value) =>
-                              value!.isEmpty ? 'District is required' : null,
-                        ),
-                        const SizedBox(height: 16),
-
-                        CustomTextField(
-                          label: 'Village',
-                          controller: _villageController,
-                          isEnabled: _isEditing,
-                          validator: (value) =>
-                              value!.isEmpty ? 'Village is required' : null,
-                        ),
-                        const SizedBox(height: 16),
-
-                        CustomTextField(
-                          label: 'Planting Date',
-                          controller: _plantingDateController,
-                          isEnabled: _isEditing,
-                          readOnly: true,
-                          onTap: _isEditing ? _selectPlantingDate : null,
-                          validator: (value) => value!.isEmpty
-                              ? 'Planting date is required'
-                              : null,
-                        ),
-                        const SizedBox(height: 24),
-
-                        // Farm Statistics Section
-                        _buildSectionTitle('Farm Statistics'),
-                        const SizedBox(height: 16),
-
-                        _buildStatisticsRow(),
-                        const SizedBox(height: 24),
-
-                        // Notes Section
-                        _buildSectionTitle('Notes'),
-                        const SizedBox(height: 16),
-
-                        CustomTextField(
-                          label: 'Additional Notes',
-                          controller: _notesController,
-                          maxLines: 4,
-                          isEnabled: _isEditing,
-                        ),
-                        const SizedBox(height: 32),
-
-                        // Save Button (only visible in edit mode)
-                        if (_isEditing)
-                          CustomButton(
-                            text: 'Save Changes',
-                            onPressed: _saveFarmDetails,
-                            isLoading: farmProvider.isLoading,
-                          ),
                       ],
                     ),
                   ),
                 ),
+                const SizedBox(height: 16),
+
+                // Location Details
+                Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: Colors.grey[200]!),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Location',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        _buildDetailRow(
+                          icon: Icons.location_city,
+                          label: 'District',
+                          value: farm.district,
+                        ),
+                        const SizedBox(height: 12),
+                        _buildDetailRow(
+                          icon: Icons.location_on,
+                          label: 'Village',
+                          value: farm.village,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Farm Statistics
+                Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: Colors.grey[200]!),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Farm Statistics',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        _buildDetailRow(
+                          icon: Icons.calendar_today,
+                          label: 'Active Seasons',
+                          value:
+                              farmProvider.seasons
+                                  .where((s) => s.farmId == farm.id)
+                                  .length
+                                  .toString(),
+                        ),
+                        const SizedBox(height: 12),
+                        _buildDetailRow(
+                          icon: Icons.note,
+                          label: 'Farm Notes',
+                          value:
+                              farmProvider.notes
+                                  .where((n) => n.farmId == farm.id)
+                                  .length
+                                  .toString(),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 32),
+
+                // Select Farm Button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      NavigationHelper.navigateToReplacement(
+                        context,
+                        const DashboardScreen(),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryGreen,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                    ),
+                    child: const Text(
+                      'Go to Dashboard',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 
-  Widget _buildSectionTitle(String title) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: AppTextStyles.heading3,
-        ),
-        const SizedBox(height: 4),
-        Container(
-          width: 50,
-          height: 3,
-          decoration: BoxDecoration(
-            color: AppColors.primaryGreen,
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatisticsRow() {
+  Widget _buildDetailRow({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
     return Row(
       children: [
-        Expanded(
-          child: _buildStatCard(
-            title: 'Seasons',
-            value: '3',
-            icon: Icons.calendar_today,
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppColors.primaryGreen.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
           ),
+          child: Icon(icon, color: AppColors.primaryGreen, size: 20),
         ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _buildStatCard(
-            title: 'Notes',
-            value: '12',
-            icon: Icons.note,
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _buildStatCard(
-            title: 'Tasks',
-            value: '8',
-            icon: Icons.check_circle_outline,
-          ),
+        const SizedBox(width: 12),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              value,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+            ),
+          ],
         ),
       ],
-    );
-  }
-
-  Widget _buildStatCard({
-    required String title,
-    required String value,
-    required IconData icon,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Icon(
-            icon,
-            color: AppColors.primaryGreen,
-            size: 24,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: AppTextStyles.heading3,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            title,
-            style: AppTextStyles.bodySmall.copyWith(
-              color: AppColors.textMedium,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
     );
   }
 }

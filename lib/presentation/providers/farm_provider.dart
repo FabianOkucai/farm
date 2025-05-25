@@ -58,7 +58,7 @@ class FarmProvider extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       _isLoading = false;
-      _error = e.toString();
+      _error = 'Unable to load farms. Working in offline mode.';
       notifyListeners();
     }
   }
@@ -69,12 +69,27 @@ class FarmProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _selectedFarm = await _apiService.getFarm(farmId);
+      // First try to find the farm in the local list
+      final localFarm = _farms.firstWhere(
+        (farm) => farm.id == farmId,
+        orElse: () => null as Farm,
+      );
+
+      if (localFarm != null) {
+        _selectedFarm = localFarm;
+      } else {
+        _selectedFarm = await _apiService.getFarm(farmId);
+        // Add to local list if not already present
+        if (!_farms.any((farm) => farm.id == _selectedFarm!.id)) {
+          _farms.add(_selectedFarm!);
+        }
+      }
+
       _isLoading = false;
       notifyListeners();
     } catch (e) {
       _isLoading = false;
-      _error = e.toString();
+      _error = 'Unable to select farm. Working in offline mode.';
       notifyListeners();
     }
   }
@@ -92,7 +107,7 @@ class FarmProvider extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       _isLoading = false;
-      _error = e.toString();
+      _error = 'Unable to create farm. Working in offline mode.';
       notifyListeners();
     }
   }
@@ -158,10 +173,8 @@ class FarmProvider extends ChangeNotifier {
           startDate: DateTime(2023, 3, 1),
           endDate: DateTime(2023, 5, 31),
           status: SeasonStatus.completed,
-          noteIds: ['1', '2'],
-          taskIds: ['1', '2', '3'],
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
+          currentMonth: 3,
+          lastUpdated: DateTime.now(),
         ),
         Season(
           id: '2',
@@ -170,10 +183,8 @@ class FarmProvider extends ChangeNotifier {
           startDate: DateTime(2023, 6, 1),
           endDate: DateTime(2023, 8, 31),
           status: SeasonStatus.active,
-          noteIds: ['3', '4'],
-          taskIds: ['4', '5', '6'],
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
+          currentMonth: 2,
+          lastUpdated: DateTime.now(),
         ),
         Season(
           id: '3',
@@ -181,11 +192,9 @@ class FarmProvider extends ChangeNotifier {
           name: 'Fall 2023',
           startDate: DateTime(2023, 9, 1),
           endDate: DateTime(2023, 11, 30),
-          status: SeasonStatus.planning,
-          noteIds: [],
-          taskIds: ['7', '8'],
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
+          status: SeasonStatus.cancelled,
+          currentMonth: 1,
+          lastUpdated: DateTime.now(),
         ),
       ];
 
@@ -346,23 +355,25 @@ class FarmProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final farmsToSync = _farms
-          .map((farm) => {
-                'farm_id': farm.id,
-                'name': farm.name,
-                'current_season_month': farm.currentSeasonMonth,
-                'last_local_update': farm.updatedAt.toIso8601String(),
-              })
-          .toList();
+      final farmsToSync =
+          _farms
+              .map(
+                (farm) => {
+                  'farm_id': farm.id,
+                  'name': farm.name,
+                  'current_season_month': farm.currentSeasonMonth,
+                  'last_local_update': farm.updatedAt.toIso8601String(),
+                },
+              )
+              .toList();
 
       final syncTimestamp = await _apiService.syncFarms(farmsToSync);
 
       // Update local farms with sync timestamp
-      _farms = _farms
-          .map((farm) => farm.copyWith(
-                lastSyncedAt: syncTimestamp,
-              ))
-          .toList();
+      _farms =
+          _farms
+              .map((farm) => farm.copyWith(lastSyncedAt: syncTimestamp))
+              .toList();
 
       _isLoading = false;
       notifyListeners();
@@ -387,12 +398,13 @@ class FarmProvider extends ChangeNotifier {
         final syncTimestamp = await _apiService.syncNotes(notesToSync);
 
         // Update local notes with sync status
-        _notes = _notes.map((note) {
-          if (notesToSync.any((n) => n.id == note.id)) {
-            return note.copyWith(isSynced: true);
-          }
-          return note;
-        }).toList();
+        _notes =
+            _notes.map((note) {
+              if (notesToSync.any((n) => n.id == note.id)) {
+                return note.copyWith(isSynced: true);
+              }
+              return note;
+            }).toList();
 
         // Remove locally deleted notes that have been synced
         _notes.removeWhere((note) => note.isDeleted && note.isSynced);
@@ -426,9 +438,10 @@ class FarmProvider extends ChangeNotifier {
 
       // Load seasons
       if (data['seasons'] != null) {
-        _seasons = (data['seasons'] as List)
-            .map((json) => Season.fromJson(json))
-            .toList();
+        _seasons =
+            (data['seasons'] as List)
+                .map((json) => Season.fromJson(json))
+                .toList();
       }
 
       _isLoading = false;

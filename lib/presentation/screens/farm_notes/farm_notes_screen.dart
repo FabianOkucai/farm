@@ -12,6 +12,7 @@ import '../dashboard/dashboard_screen.dart';
 import '../profile/profile_settings_screen.dart';
 import '../seasons/seasons_screen.dart';
 import '../farm_details/farm_details_screen.dart';
+import 'add_note_screen.dart';
 
 class FarmNotesScreen extends StatefulWidget {
   const FarmNotesScreen({Key? key}) : super(key: key);
@@ -49,7 +50,9 @@ class _FarmNotesScreenState extends State<FarmNotesScreen> {
     switch (index) {
       case 0:
         NavigationHelper.navigateToReplacement(
-            context, const DashboardScreen());
+          context,
+          const DashboardScreen(),
+        );
         break;
       case 1:
         NavigationHelper.navigateToReplacement(context, const SeasonsScreen());
@@ -59,7 +62,9 @@ class _FarmNotesScreenState extends State<FarmNotesScreen> {
         break;
       case 3:
         NavigationHelper.navigateToReplacement(
-            context, const ProfileSettingsScreen());
+          context,
+          const ProfileSettingsScreen(),
+        );
         break;
     }
   }
@@ -110,8 +115,10 @@ class _FarmNotesScreenState extends State<FarmNotesScreen> {
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   border: InputBorder.none,
                 ),
                 items: [
@@ -145,9 +152,10 @@ class _FarmNotesScreenState extends State<FarmNotesScreen> {
 
             // Notes List or Empty State
             Expanded(
-              child: farmProvider.isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : farmProvider.notes.isEmpty
+              child:
+                  farmProvider.isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : farmProvider.notes.isEmpty
                       ? _buildEmptyState()
                       : _buildNotesList(farmProvider),
             ),
@@ -179,7 +187,7 @@ class _FarmNotesScreenState extends State<FarmNotesScreen> {
               if (farmProvider.selectedFarm != null) {
                 NavigationHelper.navigateTo(
                   context,
-                  FarmDetailsScreen(farmId: farmProvider.selectedFarm!.id),
+                  AddNoteScreen(farmId: farmProvider.selectedFarm!.id),
                 );
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -192,11 +200,7 @@ class _FarmNotesScreenState extends State<FarmNotesScreen> {
             },
             borderRadius: BorderRadius.circular(30),
             child: const Center(
-              child: Icon(
-                Icons.add,
-                color: Colors.white,
-                size: 32,
-              ),
+              child: Icon(Icons.add, color: Colors.white, size: 32),
             ),
           ),
         ),
@@ -320,16 +324,17 @@ class _FarmNotesScreenState extends State<FarmNotesScreen> {
                       onSelected: (value) {
                         // Handle menu item selection
                       },
-                      itemBuilder: (context) => [
-                        const PopupMenuItem(
-                          value: 'edit',
-                          child: Text('Edit'),
-                        ),
-                        const PopupMenuItem(
-                          value: 'delete',
-                          child: Text('Delete'),
-                        ),
-                      ],
+                      itemBuilder:
+                          (context) => [
+                            const PopupMenuItem(
+                              value: 'edit',
+                              child: Text('Edit'),
+                            ),
+                            const PopupMenuItem(
+                              value: 'delete',
+                              child: Text('Delete'),
+                            ),
+                          ],
                     ),
                   ],
                 ),

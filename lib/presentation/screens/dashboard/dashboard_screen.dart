@@ -59,11 +59,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
         break;
       case 2:
         NavigationHelper.navigateToReplacement(
-            context, const FarmNotesScreen());
+          context,
+          const FarmNotesScreen(),
+        );
         break;
       case 3:
         NavigationHelper.navigateToReplacement(
-            context, const ProfileSettingsScreen());
+          context,
+          const ProfileSettingsScreen(),
+        );
         break;
     }
   }
@@ -75,164 +79,124 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text(
-          Strings.dashboard,
-          style: TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.bold,
-            fontSize: 24,
-          ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              Strings.dashboard,
+              style: TextStyle(
+                color: Colors.black,
+                fontWeight: FontWeight.bold,
+                fontSize: 24,
+              ),
+            ),
+            Consumer<FarmProvider>(
+              builder: (context, farmProvider, child) {
+                return Text(
+                  farmProvider.selectedFarm?.name ?? 'No farm selected',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                );
+              },
+            ),
+          ],
         ),
         backgroundColor: Colors.white,
         elevation: 0,
-        actions: [
-          Stack(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.notifications),
-                onPressed: () async {
-                  final notificationProvider =
-                      Provider.of<NotificationProvider>(
-                    context,
-                    listen: false,
-                  );
+      ),
+      body:
+          farmProvider.isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Dashboard Grid
+                    GridView.count(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      crossAxisCount: 2,
+                      mainAxisSpacing: 16,
+                      crossAxisSpacing: 16,
+                      childAspectRatio: 1.1,
+                      children: [
+                        _buildDashboardItem(
+                          title: Strings.myFarms,
+                          icon: AssetPaths.dashboardFarm,
+                          color: const Color(0xFFE0F7E0),
+                          onTap: () {
+                            NavigationHelper.navigateTo(
+                              context,
+                              const SelectFarmScreen(returnToNotes: false),
+                            );
+                          },
+                        ),
+                        _buildDashboardItem(
+                          title: Strings.mySeasons,
+                          icon: AssetPaths.dashboardSeasons,
+                          color: const Color(0xFFA5D6A7),
+                          onTap: () {
+                            NavigationHelper.navigateTo(
+                              context,
+                              const SeasonsScreen(),
+                            );
+                          },
+                        ),
+                        _buildDashboardItem(
+                          title: Strings.mySchedule,
+                          icon: AssetPaths.dashboardSchedule,
+                          color: const Color(0xFFA5D6A7),
+                          onTap: () {
+                            NavigationHelper.navigateTo(
+                              context,
+                              const NotificationsScreen(),
+                            );
+                          },
+                        ),
+                        _buildDashboardItem(
+                          title: Strings.myNotes,
+                          icon: AssetPaths.dashboardNotes,
+                          color: const Color(0xFFE0F7E0),
+                          onTap: () {
+                            NavigationHelper.navigateTo(
+                              context,
+                              const FarmNotesScreen(),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
 
-                  // Show test notification
-                  await notificationProvider.showTaskNotification(
-                    title: "Welcome to Agape Farm App",
-                    description: "Your farming companion is ready to help!",
-                  );
+                    const SizedBox(height: 24),
 
-                  // Navigate to notifications screen
-                  if (mounted) {
-                    NavigationHelper.navigateTo(
-                      context,
-                      const NotificationsScreen(),
-                    );
-                  }
-                },
-              ),
-              // Show notification badge if there are unread notifications
-              Consumer<NotificationProvider>(
-                builder: (context, provider, child) {
-                  final unreadCount =
-                      provider.notifications.where((n) => !n.isRead).length;
-                  if (unreadCount == 0) return const SizedBox();
-
-                  return Positioned(
-                    right: 8,
-                    top: 8,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
-                      ),
+                    // Farm Progress Section
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
                       child: Text(
-                        unreadCount.toString(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
+                        Strings.myFarmProgress,
+                        style: AppTextStyles.heading3.copyWith(
+                          fontSize: 20,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
-                  );
-                },
-              ),
-            ],
-          ),
-        ],
-      ),
-      body: farmProvider.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Dashboard Grid
-                  GridView.count(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 16,
-                    crossAxisSpacing: 16,
-                    childAspectRatio: 1.1,
-                    children: [
-                      _buildDashboardItem(
-                        title: Strings.myFarms,
-                        icon: AssetPaths.dashboardFarm,
-                        color: const Color(0xFFE0F7E0),
-                        onTap: () {
-                          NavigationHelper.navigateTo(
-                            context,
-                            const SelectFarmScreen(
-                              returnToNotes: false,
-                            ),
-                          );
-                        },
-                      ),
-                      _buildDashboardItem(
-                        title: Strings.mySeasons,
-                        icon: AssetPaths.dashboardSeasons,
-                        color: const Color(0xFFA5D6A7),
-                        onTap: () {
-                          NavigationHelper.navigateTo(
-                              context, const SeasonsScreen());
-                        },
-                      ),
-                      _buildDashboardItem(
-                        title: Strings.mySchedule,
-                        icon: AssetPaths.dashboardSchedule,
-                        color: const Color(0xFFA5D6A7),
-                        onTap: () {
-                          NavigationHelper.navigateTo(
-                              context, const ScheduleScreen());
-                        },
-                      ),
-                      _buildDashboardItem(
-                        title: Strings.myNotes,
-                        icon: AssetPaths.dashboardNotes,
-                        color: const Color(0xFFE0F7E0),
-                        onTap: () {
-                          NavigationHelper.navigateTo(
-                              context, const FarmNotesScreen());
-                        },
-                      ),
-                    ],
-                  ),
+                    const SizedBox(height: 16),
 
-                  const SizedBox(height: 24),
+                    // Farm Progress Card
+                    _buildFarmProgressCard(),
 
-                  // Farm Progress Section
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Text(
-                      Strings.myFarmProgress,
-                      style: AppTextStyles.heading3.copyWith(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    // Guide Section
+                    const SizedBox(height: 24),
+                    _buildSectionHeader(
+                      'Farmer\'s Guide',
+                      'Quick tips and help for managing your farm',
+                      Icons.lightbulb_outline,
                     ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Farm Progress Card
-                  _buildFarmProgressCard(),
-
-                  // Seasonal Guide Section
-                  const SizedBox(height: 24),
-                  _buildSectionHeader(
-                    'Seasonal Guide',
-                    'Get month-by-month guidance for your mango farm',
-                    Icons.calendar_today,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildSeasonalGuideCard(),
-                ],
+                    const SizedBox(height: 16),
+                    _buildGuideCard(),
+                  ],
+                ),
               ),
-            ),
       bottomNavigationBar: CustomNavigationBar(
         currentIndex: _currentIndex,
         onTap: _onNavigationTap,
@@ -263,12 +227,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Image.asset(
-              icon,
-              height: 80,
-              width: 80,
-              fit: BoxFit.cover,
-            ),
+            Image.asset(icon, height: 80, width: 80, fit: BoxFit.cover),
             const SizedBox(height: 12),
             Text(
               title,
@@ -284,75 +243,80 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildFarmProgressCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      margin: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                'Mango farm',
-                style: AppTextStyles.heading3.copyWith(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const Spacer(),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppColors.backgroundGrey,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  '3 acres | 4 farms',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textMedium,
-                    fontSize: 12,
+    return GestureDetector(
+      onTap: () => NavigationHelper.navigateTo(context, const SeasonsScreen()),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        margin: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  'Mango farm',
+                  style: AppTextStyles.heading3.copyWith(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          const Divider(height: 1),
-          const SizedBox(height: 16),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.backgroundGrey,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '3 acres | 4 farms',
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.textMedium,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const Divider(height: 1),
+            const SizedBox(height: 16),
 
-          // Progress Timeline
-          _buildTimelineItem(
-            title: '2nd Inspection completed',
-            date: '23rd August - 25th August',
-            isCompleted: true,
-            isLast: false,
-          ),
-          _buildTimelineItem(
-            title: '4th spray season',
-            date: '23/04 - 25/04',
-            isCompleted: true,
-            isLast: false,
-          ),
-          _buildTimelineItem(
-            title: 'Mulching phase',
-            date: '23rd August - 25th August',
-            isCompleted: false,
-            isLast: true,
-          ),
-        ],
+            // Progress Timeline
+            _buildTimelineItem(
+              title: '2nd Inspection completed',
+              date: '23rd August - 25th August',
+              isCompleted: true,
+              isLast: false,
+            ),
+            _buildTimelineItem(
+              title: '4th spray season',
+              date: '23/04 - 25/04',
+              isCompleted: true,
+              isLast: false,
+            ),
+            _buildTimelineItem(
+              title: 'Mulching phase',
+              date: '23rd August - 25th August',
+              isCompleted: false,
+              isLast: true,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -376,9 +340,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 color: isCompleted ? AppColors.primaryGreen : Colors.white,
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: isCompleted
-                      ? AppColors.primaryGreen
-                      : AppColors.textLight,
+                  color:
+                      isCompleted
+                          ? AppColors.primaryGreen
+                          : AppColors.textLight,
                   width: 2,
                 ),
               ),
@@ -423,84 +388,94 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildSeasonalGuideCard() {
-    final currentMonth = DateTime.now().month;
-    final seasonProvider = Provider.of<SeasonProvider>(context);
-
+  Widget _buildGuideCard() {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: InkWell(
-        onTap: () => Navigator.pushNamed(context, '/seasons'),
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryGreen.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.tips_and_updates,
+                    color: AppColors.primaryGreen,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Getting Started',
+                        style: AppTextStyles.heading3.copyWith(fontSize: 16),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Welcome to your farm management app',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 16),
+            Text(
+              '• Start by selecting your farm from "My Farms" above\n'
+              '• Track your progress in the Farm Progress section\n'
+              '• Add notes about important observations\n'
+              '• Check the schedule for upcoming activities\n'
+              '• Monitor seasons to optimize your farming',
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: Colors.grey[700],
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.primaryLightGreen.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppColors.primaryGreen.withOpacity(0.2),
+                ),
+              ),
+              child: Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryGreen.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.eco_outlined,
-                      color: AppColors.primaryGreen,
-                    ),
+                  const Icon(
+                    Icons.info_outline,
+                    color: AppColors.primaryGreen,
+                    size: 20,
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Current Month Activities',
-                          style: AppTextStyles.heading3.copyWith(
-                            fontSize: 16,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Month $currentMonth',
-                          style: AppTextStyles.bodySmall.copyWith(
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      'Need help? Tap on any section to learn more about its features',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.primaryGreen,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                  ),
-                  Icon(
-                    Icons.arrow_forward_ios,
-                    size: 16,
-                    color: Colors.grey[600],
                   ),
                 ],
               ),
-              if (seasonProvider.seasons.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                const Divider(),
-                const SizedBox(height: 16),
-                Text(
-                  seasonProvider.seasons
-                      .firstWhere(
-                        (s) => s.month == currentMonth,
-                        orElse: () => seasonProvider.seasons.first,
-                      )
-                      .shortDescription,
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    color: Colors.grey[700],
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -509,20 +484,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildSectionHeader(String title, String subtitle, IconData icon) {
     return Row(
       children: [
-        Icon(
-          icon,
-          color: AppColors.primaryGreen,
-          size: 24,
-        ),
+        Icon(icon, color: AppColors.primaryGreen, size: 24),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                style: AppTextStyles.heading3,
-              ),
+              Text(title, style: AppTextStyles.heading3),
               const SizedBox(height: 4),
               Text(
                 subtitle,

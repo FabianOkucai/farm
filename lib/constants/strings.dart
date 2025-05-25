@@ -19,15 +19,15 @@ class Strings {
 
   // Dashboard
   static const String dashboard = 'Dashboard';
-  static const String myFarms = 'My Farms';
-  static const String myFarm = 'My Farm';
+  static const String myFarms = 'Farms';
+  static const String myFarm = 'Farm';
   static const String farmNotes = 'Farm Notes';
-  static const String myNotes = 'My Notes';
+  static const String myNotes = 'Farm Notes';
   static const String seasons = 'Seasons';
-  static const String mySeasons = 'My Seasons';
-  static const String schedule = 'Schedule';
-  static const String mySchedule = 'My Schedule';
-  static const String myFarmProgress = 'My Farm Progress';
+  static const String mySeasons = 'Seasons';
+  static const String schedule = 'Notifications';
+  static const String mySchedule = 'Notifications';
+  static const String myFarmProgress = 'Farm Progress';
 
   // Farm
   static const String addFarm = 'Add a new farm';

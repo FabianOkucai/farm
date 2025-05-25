@@ -2,184 +2,232 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../constants/app_colors.dart';
 import '../../../constants/app_text_styles.dart';
-import '../../../constants/strings.dart';
 import '../../../core/utils/navigation_helper.dart';
 import '../../providers/farm_provider.dart';
-import '../farm_notes/farm_notes_screen.dart';
+import '../../providers/auth_provider.dart';
+import '../farm_details/farm_details_screen.dart';
 import '../add_farm/add_farm_screen.dart';
 
 class SelectFarmScreen extends StatelessWidget {
   final bool returnToNotes;
 
-  const SelectFarmScreen({
-    Key? key,
-    required this.returnToNotes,
-  }) : super(key: key);
+  const SelectFarmScreen({Key? key, this.returnToNotes = false})
+    : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final farmProvider = Provider.of<FarmProvider>(context);
-
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.grey[100],
       appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
         title: const Text(
           'Select Farm',
           style: TextStyle(
             color: Colors.black,
-            fontSize: 24,
             fontWeight: FontWeight.bold,
+            fontSize: 24,
           ),
         ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => NavigationHelper.pop(context),
-        ),
-      ),
-      body: farmProvider.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : farmProvider.farms.isEmpty
-              ? _buildEmptyState(context)
-              : _buildFarmList(context, farmProvider),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          NavigationHelper.navigateTo(context, const AddFarmScreen());
-        },
-        backgroundColor: AppColors.primaryGreen,
-        child: const Icon(Icons.add),
-      ),
-    );
-  }
-
-  Widget _buildEmptyState(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 120,
-            height: 120,
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppColors.primaryLightGreen.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.agriculture_outlined,
-              size: 64,
-              color: AppColors.primaryGreen.withOpacity(0.7),
-            ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'No Farms Yet',
-            style: AppTextStyles.heading3.copyWith(
-              color: AppColors.textMedium,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Add your first farm to get started',
-            style: AppTextStyles.bodyMedium.copyWith(
-              color: AppColors.textLight,
-              fontSize: 16,
-            ),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton(
+        actions: [
+          TextButton.icon(
             onPressed: () {
               NavigationHelper.navigateTo(context, const AddFarmScreen());
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryGreen,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 32,
-                vertical: 16,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
+            icon: const Icon(Icons.add, color: AppColors.primaryGreen),
+            label: const Text(
+              'Add Farm',
+              style: TextStyle(
+                color: AppColors.primaryGreen,
+                fontWeight: FontWeight.w600,
               ),
             ),
-            child: const Text('Add Farm'),
           ),
         ],
       ),
-    );
-  }
+      body: Consumer<FarmProvider>(
+        builder: (context, farmProvider, child) {
+          if (farmProvider.isLoading) {
+            return const Center(
+              child: CircularProgressIndicator(color: AppColors.primaryGreen),
+            );
+          }
 
-  Widget _buildFarmList(BuildContext context, FarmProvider farmProvider) {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: farmProvider.farms.length,
-      itemBuilder: (context, index) {
-        final farm = farmProvider.farms[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          elevation: 2,
-          child: InkWell(
-            onTap: () async {
-              await farmProvider.selectFarm(farm.id);
-              if (context.mounted) {
-                if (returnToNotes) {
-                  NavigationHelper.navigateToReplacement(
-                    context,
-                    const FarmNotesScreen(),
-                  );
-                } else {
-                  NavigationHelper.pop(context);
-                }
-              }
-            },
-            borderRadius: BorderRadius.circular(20),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
+          if (farmProvider.error != null) {
+            return Center(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  Icon(Icons.error_outline, size: 48, color: Colors.red[300]),
+                  const SizedBox(height: 16),
                   Text(
-                    farm.name,
-                    style: AppTextStyles.bodyLarge.copyWith(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 18,
-                    ),
+                    'Error: ${farmProvider.error}',
+                    style: TextStyle(color: Colors.red[300]),
                   ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.location_on_outlined,
-                        size: 16,
-                        color: AppColors.textLight,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${farm.village}, ${farm.district}',
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: AppColors.textLight,
+                  const SizedBox(height: 16),
+                  Consumer<AuthProvider>(
+                    builder: (context, authProvider, _) {
+                      return ElevatedButton(
+                        onPressed: () {
+                          farmProvider.clearError();
+                          farmProvider.loadFarms(authProvider.user!.id);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primaryGreen,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
                         ),
-                      ),
-                      const Spacer(),
-                      Text(
-                        '${farm.size} hectares',
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: AppColors.textLight,
-                        ),
-                      ),
-                    ],
+                        child: const Text('Retry'),
+                      );
+                    },
                   ),
                 ],
               ),
-            ),
-          ),
-        );
-      },
+            );
+          }
+
+          if (farmProvider.farms.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.agriculture_outlined,
+                    size: 64,
+                    color: Colors.grey[400],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No farms added yet',
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Add your first farm to get started',
+                    style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      NavigationHelper.navigateTo(
+                        context,
+                        const AddFarmScreen(),
+                      );
+                    },
+                    icon: const Icon(Icons.add),
+                    label: const Text('Add Farm'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryGreen,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: farmProvider.farms.length,
+            itemBuilder: (context, index) {
+              final farm = farmProvider.farms[index];
+              final isSelected = farm.id == farmProvider.selectedFarm?.id;
+
+              return Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(
+                    color:
+                        isSelected ? AppColors.primaryGreen : Colors.grey[200]!,
+                    width: isSelected ? 2 : 1,
+                  ),
+                ),
+                child: InkWell(
+                  onTap: () async {
+                    await farmProvider.selectFarm(farm.id);
+                    if (context.mounted) {
+                      NavigationHelper.navigateTo(
+                        context,
+                        FarmDetailsScreen(farmId: farm.id),
+                      );
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryGreen.withOpacity(0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.agriculture,
+                            color: AppColors.primaryGreen,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                farm.name,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${farm.size} acres • ${farm.village}, ${farm.district}',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (isSelected)
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: const BoxDecoration(
+                              color: AppColors.primaryGreen,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.check,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }
