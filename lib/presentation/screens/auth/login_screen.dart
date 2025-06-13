@@ -13,6 +13,7 @@ import '../../widgets/gradient_background.dart';
 import '../dashboard/dashboard_screen.dart';
 import 'signup_screen.dart';
 import 'forgot_password_screen.dart';
+import '../contact/contact_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -68,7 +69,6 @@ class _LoginScreenState extends State<LoginScreen> {
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
-      // Main container with gradient background
       body: Container(
         // Green gradient background from dark to light
         decoration: const BoxDecoration(
@@ -328,6 +328,13 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          NavigationHelper.navigateTo(context, const ContactScreen());
+        },
+        backgroundColor: AppColors.primaryGreen,
+        child: const Icon(Icons.contact_phone),
       ),
     );
   }

@@ -16,10 +16,7 @@ abstract class BaseAuthService {
     required String village,
   });
 
-  Future<User> signIn({
-    required String email,
-    required String password,
-  });
+  Future<User> signIn({required String email, required String password});
 
   Future<void> refreshToken();
   Future<void> signOut();
@@ -36,4 +33,15 @@ abstract class BaseAuthService {
 
   Future<void> updatePassword(String password);
   Future<void> resetPassword(String email);
+
+  Future<User> signUp({
+    required String email,
+    required String password,
+    required String displayName,
+    required String phone,
+    required String district,
+    required String village,
+  });
+
+  void dispose();
 }

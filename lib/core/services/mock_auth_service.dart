@@ -56,10 +56,7 @@ class MockAuthService implements BaseAuthService {
   }
 
   // Login user
-  Future<User> signIn({
-    required String email,
-    required String password,
-  }) async {
+  Future<User> signIn({required String email, required String password}) async {
     // Simulate network delay
     await Future.delayed(const Duration(seconds: 1));
 
@@ -161,5 +158,29 @@ class MockAuthService implements BaseAuthService {
   Future<void> resetPassword(String email) async {
     // Simulate network delay
     await Future.delayed(const Duration(seconds: 1));
+  }
+
+  @override
+  Future<User> signUp({
+    required String email,
+    required String password,
+    required String displayName,
+    required String phone,
+    required String district,
+    required String village,
+  }) async {
+    return register(
+      email: email,
+      password: password,
+      fullName: displayName,
+      phone: phone,
+      district: district,
+      village: village,
+    );
+  }
+
+  @override
+  void dispose() {
+    // No cleanup needed for mock service
   }
 }

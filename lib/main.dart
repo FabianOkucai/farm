@@ -26,7 +26,10 @@ void main() async {
     final localStorage = await LocalStorage.init();
 
     // Initialize API services
-    final apiService = ApiService(baseUrl: AppConfig.apiBaseUrl);
+    final apiService = ApiService(
+      baseUrl: AppConfig.apiBaseUrl,
+      localStorage: localStorage,
+    );
     final authService = AuthService(baseUrl: AppConfig.apiBaseUrl);
 
     // Initialize notification services
@@ -91,12 +94,13 @@ class MyApp extends StatelessWidget {
           create: (_) => SeasonProvider(apiService: apiService),
         ),
         ChangeNotifierProvider(
-          create: (_) => NotificationProvider(
-            notificationService: notificationService,
-            notificationGenerator: notificationGenerator,
-            dailyCheckerService: dailyCheckerService,
-            localStorage: localStorage,
-          ),
+          create:
+              (_) => NotificationProvider(
+                notificationService: notificationService,
+                notificationGenerator: notificationGenerator,
+                dailyCheckerService: dailyCheckerService,
+                localStorage: localStorage,
+              ),
         ),
       ],
       child: Consumer<ThemeProvider>(

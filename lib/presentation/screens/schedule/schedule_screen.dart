@@ -10,6 +10,7 @@ import '../../widgets/navigation_bar.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../profile/profile_settings_screen.dart';
 import '../seasons/seasons_screen.dart';
+import '../contact/contact_screen.dart';
 
 class ScheduleScreen extends StatefulWidget {
   const ScheduleScreen({Key? key}) : super(key: key);
@@ -43,7 +44,9 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     switch (index) {
       case 0:
         NavigationHelper.navigateToReplacement(
-            context, const DashboardScreen());
+          context,
+          const DashboardScreen(),
+        );
         break;
       case 1:
         NavigationHelper.navigateToReplacement(context, const SeasonsScreen());
@@ -53,7 +56,9 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
         break;
       case 3:
         NavigationHelper.navigateToReplacement(
-            context, const ProfileSettingsScreen());
+          context,
+          const ProfileSettingsScreen(),
+        );
         break;
     }
   }
@@ -133,23 +138,24 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
 
             // Schedule Content
             Expanded(
-              child: farmProvider.isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _buildScheduleContent(),
+              child:
+                  farmProvider.isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : _buildScheduleContent(),
             ),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // TODO: Add new schedule item
-        },
-        backgroundColor: AppColors.primaryGreen,
-        child: const Icon(Icons.add),
-      ),
       bottomNavigationBar: CustomNavigationBar(
         currentIndex: _currentIndex,
         onTap: _onNavigationTap,
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          NavigationHelper.navigateTo(context, const ContactScreen());
+        },
+        backgroundColor: AppColors.primaryGreen,
+        child: const Icon(Icons.contact_phone),
       ),
     );
   }
@@ -190,9 +196,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   Widget _buildTaskCard(_ScheduleTask task) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       elevation: 2,
       child: InkWell(
         onTap: () {
@@ -207,9 +211,10 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                 width: 4,
                 height: 50,
                 decoration: BoxDecoration(
-                  color: task.isCompleted
-                      ? AppColors.primaryGreen
-                      : AppColors.primaryLightGreen,
+                  color:
+                      task.isCompleted
+                          ? AppColors.primaryGreen
+                          : AppColors.primaryLightGreen,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -249,9 +254,10 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                     task.isCompleted
                         ? Icons.check_circle
                         : Icons.radio_button_unchecked,
-                    color: task.isCompleted
-                        ? AppColors.primaryGreen
-                        : AppColors.textLight,
+                    color:
+                        task.isCompleted
+                            ? AppColors.primaryGreen
+                            : AppColors.textLight,
                     size: 20,
                   ),
                 ],

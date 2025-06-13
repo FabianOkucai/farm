@@ -10,6 +10,8 @@ class Farm {
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? lastSyncedAt;
+  final bool isSynced;
+  final bool isDeleted;
 
   Farm({
     required this.id,
@@ -23,28 +25,34 @@ class Farm {
     required this.createdAt,
     required this.updatedAt,
     this.lastSyncedAt,
+    this.isSynced = true,
+    this.isDeleted = false,
   });
 
   factory Farm.fromJson(Map<String, dynamic> json) {
     return Farm(
-      id: json['farm_id'] ?? json['id'],
-      name: json['name'],
+      id: json['id'] as String,
+      name: json['name'] as String,
       size: (json['size'] as num).toDouble(),
-      district: json['district'],
-      village: json['village'],
-      farmerId: json['farmer_id'],
-      plantingDate: DateTime.parse(json['planting_date']),
-      currentSeasonMonth: json['current_season_month'],
-      createdAt: DateTime.parse(json['created_at']),
-      updatedAt: DateTime.parse(json['updated_at']),
-      lastSyncedAt: json['last_synced_at'] != null
-          ? DateTime.parse(json['last_synced_at'])
-          : null,
+      district: json['district'] as String,
+      village: json['village'] as String,
+      farmerId: json['farmer_id'] as String,
+      plantingDate: DateTime.parse(json['planting_date'] as String),
+      currentSeasonMonth: json['current_season_month'] as int,
+      createdAt: DateTime.parse(json['created_at'] as String),
+      updatedAt: DateTime.parse(json['updated_at'] as String),
+      lastSyncedAt:
+          json['last_synced_at'] != null
+              ? DateTime.parse(json['last_synced_at'] as String)
+              : null,
+      isSynced: json['is_synced'] as bool? ?? true,
+      isDeleted: json['is_deleted'] as bool? ?? false,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
+      'id': id,
       'name': name,
       'size': size,
       'district': district,
@@ -52,6 +60,11 @@ class Farm {
       'farmer_id': farmerId,
       'planting_date': plantingDate.toIso8601String(),
       'current_season_month': currentSeasonMonth,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
+      'last_synced_at': lastSyncedAt?.toIso8601String(),
+      'is_synced': isSynced,
+      'is_deleted': isDeleted,
     };
   }
 
@@ -67,6 +80,8 @@ class Farm {
     DateTime? createdAt,
     DateTime? updatedAt,
     DateTime? lastSyncedAt,
+    bool? isSynced,
+    bool? isDeleted,
   }) {
     return Farm(
       id: id ?? this.id,
@@ -80,6 +95,8 @@ class Farm {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       lastSyncedAt: lastSyncedAt ?? this.lastSyncedAt,
+      isSynced: isSynced ?? this.isSynced,
+      isDeleted: isDeleted ?? this.isDeleted,
     );
   }
 }

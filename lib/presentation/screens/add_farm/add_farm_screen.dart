@@ -6,7 +6,8 @@ import '../../../constants/strings.dart';
 import '../../../core/models/farm.dart';
 import '../../../core/utils/form_validators.dart';
 import '../../../core/utils/navigation_helper.dart';
-import '../../providers/auth_provider.dart';
+// import '../../providers/auth_provider.dart';
+import '../../../core/utils/local_storage.dart';
 import '../../providers/farm_provider.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../farm_notes/farm_notes_screen.dart';
@@ -59,10 +60,12 @@ class _AddFarmScreenState extends State<AddFarmScreen> {
 
   Future<void> _saveFarm() async {
     if (_formKey.currentState!.validate()) {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      // final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final farmProvider = Provider.of<FarmProvider>(context, listen: false);
 
-      if (authProvider.user == null) return;
+      // Check for uuid in local storage
+      final localStorage = await LocalStorage.init();
+      final uuid = localStorage.getUuid();
 
       final farm = Farm(
         id: '', // Will be assigned by the server
@@ -70,14 +73,20 @@ class _AddFarmScreenState extends State<AddFarmScreen> {
         size: double.parse(_sizeController.text.trim()),
         district: _districtController.text.trim(),
         village: _villageController.text.trim(),
-        farmerId: authProvider.user!.id,
+        farmerId: uuid ?? '', // Send uuid if exists, else empty
         plantingDate: _selectedPlantingDate!,
         currentSeasonMonth: 1, // Starting with month 1
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
 
-      await farmProvider.createFarm(farm);
+      // Pass uuid to provider
+      final responseUuid = await farmProvider.createFarmWithUuid(farm, uuid: uuid);
+
+      // Store uuid if returned from backend
+      if (responseUuid != null && responseUuid.isNotEmpty) {
+        await localStorage.setUuid(responseUuid);
+      }
 
       if (mounted) {
         NavigationHelper.navigateToReplacement(

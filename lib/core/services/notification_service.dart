@@ -3,13 +3,13 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
 
 class NotificationService {
-  final FlutterLocalNotificationsPlugin _notificationsPlugin;
-
-  NotificationService()
-    : _notificationsPlugin = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _notifications =
+      FlutterLocalNotificationsPlugin();
+  bool _isInitialized = false;
 
   Future<void> initialize() async {
-    // Initialize timezone
+    if (_isInitialized) return;
+
     tz.initializeTimeZones();
 
     const androidSettings = AndroidInitializationSettings(
@@ -21,31 +21,32 @@ class NotificationService {
       requestSoundPermission: true,
     );
 
-    const initializationSettings = InitializationSettings(
+    const initSettings = InitializationSettings(
       android: androidSettings,
       iOS: iosSettings,
     );
 
-    await _notificationsPlugin.initialize(
-      initializationSettings,
-      onDidReceiveNotificationResponse: (details) {
-        // Handle notification tap
-      },
+    await _notifications.initialize(
+      initSettings,
+      onDidReceiveNotificationResponse: _handleNotificationTap,
     );
+
+    _isInitialized = true;
   }
 
   Future<void> showNotification({
     required String title,
     required String body,
-    String? payload,
+    Map<String, dynamic>? payload,
   }) async {
+    if (!_isInitialized) await initialize();
+
     const androidDetails = AndroidNotificationDetails(
-      'default_channel',
-      'Default Channel',
-      channelDescription: 'Default notification channel',
+      'farm_notifications',
+      'Farm Notifications',
+      channelDescription: 'Notifications for farm activities and updates',
       importance: Importance.high,
       priority: Priority.high,
-      playSound: true,
     );
 
     const iosDetails = DarwinNotificationDetails(
@@ -54,17 +55,17 @@ class NotificationService {
       presentSound: true,
     );
 
-    const notificationDetails = NotificationDetails(
+    const details = NotificationDetails(
       android: androidDetails,
       iOS: iosDetails,
     );
 
-    await _notificationsPlugin.show(
-      0,
+    await _notifications.show(
+      DateTime.now().millisecondsSinceEpoch.remainder(100000),
       title,
       body,
-      notificationDetails,
-      payload: payload,
+      details,
+      payload: payload != null ? payload.toString() : null,
     );
   }
 
@@ -72,15 +73,16 @@ class NotificationService {
     required String title,
     required String body,
     required DateTime scheduledDate,
-    String? payload,
+    Map<String, dynamic>? payload,
   }) async {
+    if (!_isInitialized) await initialize();
+
     const androidDetails = AndroidNotificationDetails(
-      'scheduled_channel',
-      'Scheduled Channel',
-      channelDescription: 'Channel for scheduled notifications',
+      'farm_notifications',
+      'Farm Notifications',
+      channelDescription: 'Notifications for farm activities and updates',
       importance: Importance.high,
       priority: Priority.high,
-      playSound: true,
     );
 
     const iosDetails = DarwinNotificationDetails(
@@ -89,29 +91,37 @@ class NotificationService {
       presentSound: true,
     );
 
-    const notificationDetails = NotificationDetails(
+    const details = NotificationDetails(
       android: androidDetails,
       iOS: iosDetails,
     );
 
-    await _notificationsPlugin.zonedSchedule(
-      0,
+    await _notifications.zonedSchedule(
+      DateTime.now().millisecondsSinceEpoch.remainder(100000),
       title,
       body,
       tz.TZDateTime.from(scheduledDate, tz.local),
-      notificationDetails,
+      details,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
-      payload: payload,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      payload: payload != null ? payload.toString() : null,
     );
   }
 
   Future<void> cancelAllNotifications() async {
-    await _notificationsPlugin.cancelAll();
+    if (!_isInitialized) await initialize();
+    await _notifications.cancelAll();
   }
 
   Future<void> cancelNotification(int id) async {
-    await _notificationsPlugin.cancel(id);
+    if (!_isInitialized) await initialize();
+    await _notifications.cancel(id);
+  }
+
+  void _handleNotificationTap(NotificationResponse response) {
+    // Handle notification tap
+    // This will be implemented by the app to handle different notification types
+    print('Notification tapped: ${response.payload}');
   }
 }

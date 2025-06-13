@@ -12,6 +12,7 @@ import '../../widgets/custom_text_field.dart';
 import '../../widgets/gradient_background.dart';
 import '../dashboard/dashboard_screen.dart';
 import 'login_screen.dart';
+import '../contact/contact_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({Key? key}) : super(key: key);
@@ -80,10 +81,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
   // Function to navigate to login screen
   void _goToLogin() {
-    NavigationHelper.navigateTo(
-      context,
-      const LoginScreen(),
-    );
+    NavigationHelper.navigateTo(context, const LoginScreen());
   }
 
   @override
@@ -92,7 +90,6 @@ class _SignupScreenState extends State<SignupScreen> {
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
-      // Main container with gradient background
       body: Container(
         // Green gradient background from dark to light
         decoration: const BoxDecoration(
@@ -134,7 +131,8 @@ class _SignupScreenState extends State<SignupScreen> {
                         // White container with form
                         Container(
                           margin: const EdgeInsets.only(
-                              top: 100), // Add margin to lower the form
+                            top: 100,
+                          ), // Add margin to lower the form
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
                             color: Colors.white,
@@ -143,9 +141,8 @@ class _SignupScreenState extends State<SignupScreen> {
                           child: Column(
                             children: [
                               const SizedBox(
-                                  height:
-                                      140), // Increased space for larger mango image
-
+                                height: 140,
+                              ), // Increased space for larger mango image
                               // Welcome text
                               const Text(
                                 "Create Account",
@@ -169,8 +166,9 @@ class _SignupScreenState extends State<SignupScreen> {
                               Container(
                                 width: double.infinity,
                                 decoration: BoxDecoration(
-                                  border:
-                                      Border.all(color: Colors.grey.shade300),
+                                  border: Border.all(
+                                    color: Colors.grey.shade300,
+                                  ),
                                   borderRadius: BorderRadius.circular(30),
                                 ),
                                 child: TextFormField(
@@ -182,7 +180,9 @@ class _SignupScreenState extends State<SignupScreen> {
                                       fontWeight: FontWeight.w900,
                                     ),
                                     contentPadding: EdgeInsets.symmetric(
-                                        horizontal: 16, vertical: 16),
+                                      horizontal: 16,
+                                      vertical: 16,
+                                    ),
                                     border: InputBorder.none,
                                   ),
                                 ),
@@ -194,8 +194,9 @@ class _SignupScreenState extends State<SignupScreen> {
                               Container(
                                 width: double.infinity,
                                 decoration: BoxDecoration(
-                                  border:
-                                      Border.all(color: Colors.grey.shade300),
+                                  border: Border.all(
+                                    color: Colors.grey.shade300,
+                                  ),
                                   borderRadius: BorderRadius.circular(30),
                                 ),
                                 child: TextFormField(
@@ -208,7 +209,9 @@ class _SignupScreenState extends State<SignupScreen> {
                                       fontWeight: FontWeight.w900,
                                     ),
                                     contentPadding: EdgeInsets.symmetric(
-                                        horizontal: 16, vertical: 16),
+                                      horizontal: 16,
+                                      vertical: 16,
+                                    ),
                                     border: InputBorder.none,
                                   ),
                                 ),
@@ -220,8 +223,9 @@ class _SignupScreenState extends State<SignupScreen> {
                               Container(
                                 width: double.infinity,
                                 decoration: BoxDecoration(
-                                  border:
-                                      Border.all(color: Colors.grey.shade300),
+                                  border: Border.all(
+                                    color: Colors.grey.shade300,
+                                  ),
                                   borderRadius: BorderRadius.circular(30),
                                 ),
                                 child: TextFormField(
@@ -238,7 +242,9 @@ class _SignupScreenState extends State<SignupScreen> {
                                       fontWeight: FontWeight.w900,
                                     ),
                                     contentPadding: EdgeInsets.symmetric(
-                                        horizontal: 16, vertical: 16),
+                                      horizontal: 16,
+                                      vertical: 16,
+                                    ),
                                     border: InputBorder.none,
                                   ),
                                 ),
@@ -250,8 +256,9 @@ class _SignupScreenState extends State<SignupScreen> {
                               Container(
                                 width: double.infinity,
                                 decoration: BoxDecoration(
-                                  border:
-                                      Border.all(color: Colors.grey.shade300),
+                                  border: Border.all(
+                                    color: Colors.grey.shade300,
+                                  ),
                                   borderRadius: BorderRadius.circular(30),
                                 ),
                                 child: TextFormField(
@@ -268,7 +275,9 @@ class _SignupScreenState extends State<SignupScreen> {
                                       fontWeight: FontWeight.w900,
                                     ),
                                     contentPadding: EdgeInsets.symmetric(
-                                        horizontal: 16, vertical: 16),
+                                      horizontal: 16,
+                                      vertical: 16,
+                                    ),
                                     border: InputBorder.none,
                                   ),
                                 ),
@@ -280,8 +289,9 @@ class _SignupScreenState extends State<SignupScreen> {
                               Container(
                                 width: double.infinity,
                                 decoration: BoxDecoration(
-                                  border:
-                                      Border.all(color: Colors.grey.shade300),
+                                  border: Border.all(
+                                    color: Colors.grey.shade300,
+                                  ),
                                   borderRadius: BorderRadius.circular(30),
                                 ),
                                 child: TextFormField(
@@ -294,7 +304,9 @@ class _SignupScreenState extends State<SignupScreen> {
                                       fontWeight: FontWeight.w900,
                                     ),
                                     contentPadding: EdgeInsets.symmetric(
-                                        horizontal: 16, vertical: 16),
+                                      horizontal: 16,
+                                      vertical: 16,
+                                    ),
                                     border: InputBorder.none,
                                   ),
                                 ),
@@ -306,8 +318,9 @@ class _SignupScreenState extends State<SignupScreen> {
                               Container(
                                 width: double.infinity,
                                 decoration: BoxDecoration(
-                                  border:
-                                      Border.all(color: Colors.grey.shade300),
+                                  border: Border.all(
+                                    color: Colors.grey.shade300,
+                                  ),
                                   borderRadius: BorderRadius.circular(30),
                                 ),
                                 child: TextFormField(
@@ -320,7 +333,9 @@ class _SignupScreenState extends State<SignupScreen> {
                                       fontWeight: FontWeight.w900,
                                     ),
                                     contentPadding: EdgeInsets.symmetric(
-                                        horizontal: 16, vertical: 16),
+                                      horizontal: 16,
+                                      vertical: 16,
+                                    ),
                                     border: InputBorder.none,
                                   ),
                                 ),
@@ -332,8 +347,9 @@ class _SignupScreenState extends State<SignupScreen> {
                               Container(
                                 width: double.infinity,
                                 decoration: BoxDecoration(
-                                  border:
-                                      Border.all(color: Colors.grey.shade300),
+                                  border: Border.all(
+                                    color: Colors.grey.shade300,
+                                  ),
                                   borderRadius: BorderRadius.circular(30),
                                 ),
                                 child: TextFormField(
@@ -346,7 +362,9 @@ class _SignupScreenState extends State<SignupScreen> {
                                       fontWeight: FontWeight.w900,
                                     ),
                                     contentPadding: EdgeInsets.symmetric(
-                                        horizontal: 16, vertical: 16),
+                                      horizontal: 16,
+                                      vertical: 16,
+                                    ),
                                     border: InputBorder.none,
                                   ),
                                 ),
@@ -376,7 +394,8 @@ class _SignupScreenState extends State<SignupScreen> {
                                       shadowColor: Colors.transparent,
                                       foregroundColor: Colors.white,
                                       padding: const EdgeInsets.symmetric(
-                                          vertical: 12),
+                                        vertical: 12,
+                                      ),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(30),
                                       ),
@@ -458,6 +477,13 @@ class _SignupScreenState extends State<SignupScreen> {
             ),
           ),
         ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          NavigationHelper.navigateTo(context, const ContactScreen());
+        },
+        backgroundColor: AppColors.primaryGreen,
+        child: const Icon(Icons.contact_phone),
       ),
     );
   }

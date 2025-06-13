@@ -3,12 +3,14 @@ import 'package:provider/provider.dart';
 import '../../../constants/app_colors.dart';
 import '../../../constants/app_text_styles.dart';
 import '../../../constants/strings.dart';
+import 'add_season_screen.dart';
 import '../../../core/utils/navigation_helper.dart';
 import '../../providers/farm_provider.dart';
 import '../../widgets/navigation_bar.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../farm_notes/farm_notes_screen.dart';
 import '../profile/profile_settings_screen.dart';
+import '../contact/contact_screen.dart';
 
 class SeasonsScreen extends StatefulWidget {
   const SeasonsScreen({Key? key}) : super(key: key);
@@ -44,18 +46,24 @@ class _SeasonsScreenState extends State<SeasonsScreen>
     switch (index) {
       case 0:
         NavigationHelper.navigateToReplacement(
-            context, const DashboardScreen());
+          context,
+          const DashboardScreen(),
+        );
         break;
       case 1:
         // Already on seasons
         break;
       case 2:
         NavigationHelper.navigateToReplacement(
-            context, const FarmNotesScreen());
+          context,
+          const FarmNotesScreen(),
+        );
         break;
       case 3:
         NavigationHelper.navigateToReplacement(
-            context, const ProfileSettingsScreen());
+          context,
+          const ProfileSettingsScreen(),
+        );
         break;
     }
   }
@@ -243,6 +251,13 @@ class _SeasonsScreenState extends State<SeasonsScreen>
         currentIndex: _currentIndex,
         onTap: _onNavigationTap,
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          NavigationHelper.navigateTo(context, const ContactScreen());
+        },
+        backgroundColor: AppColors.primaryGreen,
+        child: const Icon(Icons.contact_phone),
+      ),
     );
   }
 
@@ -328,8 +343,10 @@ class _SeasonsScreenState extends State<SeasonsScreen>
                 ),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.primaryLightGreen.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(20),

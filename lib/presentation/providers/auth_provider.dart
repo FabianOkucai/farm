@@ -1,11 +1,12 @@
 // lib/presentation/providers/auth_provider.dart
 import 'package:flutter/material.dart';
+import 'dart:async';
+import 'dart:io';
 import '../../core/models/user.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/mock_auth_service.dart';
 import '../../core/services/base_auth_service.dart';
 import '../../constants/config.dart';
-import 'dart:io';
 
 class AuthProvider extends ChangeNotifier {
   static const bool useMockService = false; // Set to true for testing
@@ -18,10 +19,11 @@ class AuthProvider extends ChangeNotifier {
   bool _isInitialized = false;
 
   AuthProvider({BaseAuthService? authService})
-      : _authService = authService ??
-      (useMockService
-          ? MockAuthService()
-          : AuthService(baseUrl: AppConfig.apiBaseUrl)) {
+    : _authService =
+          authService ??
+          (useMockService
+              ? MockAuthService()
+              : AuthService(baseUrl: AppConfig.apiBaseUrl)) {
     _init();
   }
 
@@ -62,41 +64,35 @@ class AuthProvider extends ChangeNotifier {
     _clearError();
 
     try {
-      _user = await _authService.register(
+      final user = await _authService.signUp(
         email: email,
         password: password,
-        fullName: displayName,
+        displayName: displayName,
         phone: phone,
         district: district,
         village: village,
       );
-
-      _setLoading(false);
+      _user = user;
+      notifyListeners();
     } catch (e) {
+      _handleError(e);
+    } finally {
       _setLoading(false);
-      _setError(_parseError(e));
-      rethrow;
     }
   }
 
-  Future<void> signIn({
-    required String email,
-    required String password,
-  }) async {
+  Future<void> signIn({required String email, required String password}) async {
     _setLoading(true);
     _clearError();
 
     try {
-      _user = await _authService.signIn(
-        email: email,
-        password: password,
-      );
-
-      _setLoading(false);
+      final user = await _authService.signIn(email: email, password: password);
+      _user = user;
+      notifyListeners();
     } catch (e) {
+      _handleError(e);
+    } finally {
       _setLoading(false);
-      _setError(_parseError(e));
-      rethrow;
     }
   }
 
@@ -107,10 +103,11 @@ class AuthProvider extends ChangeNotifier {
     try {
       await _authService.signOut();
       _user = null;
-      _setLoading(false);
+      notifyListeners();
     } catch (e) {
+      _handleError(e);
+    } finally {
       _setLoading(false);
-      _setError(_parseError(e));
     }
   }
 
@@ -180,20 +177,18 @@ class AuthProvider extends ChangeNotifier {
   Future<void> refreshToken() async {
     try {
       await _authService.refreshToken();
-      // Optionally refresh user data
       _user = await _authService.getCurrentUser();
       notifyListeners();
     } catch (e) {
-      // Handle token refresh failure
-      _setError('Session expired. Please log in again.');
-      _user = null;
-      notifyListeners();
+      _handleError(e);
+      // If token refresh fails, sign out the user
+      await signOut();
     }
   }
 
   // Helper methods
-  void _setLoading(bool loading) {
-    _isLoading = loading;
+  void _setLoading(bool value) {
+    _isLoading = value;
     notifyListeners();
   }
 
@@ -218,6 +213,17 @@ class AuthProvider extends ChangeNotifier {
     return error.toString();
   }
 
+  void _handleError(dynamic error) {
+    if (error is SocketException) {
+      _error = 'No internet connection. Please check your network.';
+    } else if (error is TimeoutException) {
+      _error = 'Request timed out. Please try again.';
+    } else {
+      _error = error.toString();
+    }
+    notifyListeners();
+  }
+
   void clearError() {
     _clearError();
   }
@@ -240,4 +246,10 @@ class AuthProvider extends ChangeNotifier {
     district: district,
     village: village,
   );
+
+  @override
+  void dispose() {
+    _authService.dispose();
+    super.dispose();
+  }
 }

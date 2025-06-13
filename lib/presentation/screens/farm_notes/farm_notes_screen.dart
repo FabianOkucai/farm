@@ -13,6 +13,7 @@ import '../profile/profile_settings_screen.dart';
 import '../seasons/seasons_screen.dart';
 import '../farm_details/farm_details_screen.dart';
 import 'add_note_screen.dart';
+import '../contact/contact_screen.dart';
 
 class FarmNotesScreen extends StatefulWidget {
   const FarmNotesScreen({Key? key}) : super(key: key);
@@ -162,52 +163,65 @@ class _FarmNotesScreenState extends State<FarmNotesScreen> {
           ],
         ),
       ),
-      floatingActionButton: Container(
-        width: 60,
-        height: 60,
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF000900), Color(0xFF026A02)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(30),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () {
-              if (farmProvider.selectedFarm != null) {
-                NavigationHelper.navigateTo(
-                  context,
-                  AddNoteScreen(farmId: farmProvider.selectedFarm!.id),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Please select a farm first'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
-            },
-            borderRadius: BorderRadius.circular(30),
-            child: const Center(
-              child: Icon(Icons.add, color: Colors.white, size: 32),
-            ),
-          ),
-        ),
-      ),
       bottomNavigationBar: CustomNavigationBar(
         currentIndex: _currentIndex,
         onTap: _onNavigationTap,
+      ),
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FloatingActionButton(
+            onPressed: () {
+              NavigationHelper.navigateTo(context, const ContactScreen());
+            },
+            backgroundColor: AppColors.primaryGreen,
+            child: const Icon(Icons.contact_phone),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF000900), Color(0xFF026A02)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(30),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  if (farmProvider.selectedFarm != null) {
+                    NavigationHelper.navigateTo(
+                      context,
+                      AddNoteScreen(farmId: farmProvider.selectedFarm!.id),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please select a farm first'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                },
+                borderRadius: BorderRadius.circular(30),
+                child: const Center(
+                  child: Icon(Icons.add, color: Colors.white, size: 32),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

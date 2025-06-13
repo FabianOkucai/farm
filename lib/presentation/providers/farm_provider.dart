@@ -5,6 +5,8 @@ import '../../core/models/farm.dart';
 import '../../core/models/note.dart';
 import '../../core/models/season.dart';
 import '../../core/services/api_service.dart';
+import 'package:provider/provider.dart';
+import '../../presentation/providers/auth_provider.dart';
 
 // Add this model class for activities
 class FarmActivity {
@@ -24,6 +26,49 @@ class FarmActivity {
 }
 
 class FarmProvider extends ChangeNotifier {
+  // ... existing fields and constructor ...
+
+  /// Creates a farm, optionally with a uuid. Returns uuid from backend if present.
+  Future<String?> createFarmWithUuid(Farm farm, {String? uuid}) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      // Create farm locally first
+      final localFarm = farm.copyWith(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        isSynced: false,
+      );
+      _farms.add(localFarm);
+      notifyListeners();
+
+      // Try to sync with backend if online
+      if (uuid != null && uuid.isNotEmpty) {
+        try {
+          final serverFarm = await _apiService.createFarm(farm);
+
+          // Update local farm with server data
+          final index = _farms.indexWhere((f) => f.id == localFarm.id);
+          if (index != -1) {
+            _farms[index] = serverFarm;
+          }
+        } catch (e) {
+          // If sync fails, keep local farm and mark for later sync
+          debugPrint('Failed to sync farm with server: $e');
+        }
+      }
+
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _isLoading = false;
+      _error = e.toString();
+      notifyListeners();
+      rethrow;
+    }
+  }
+
   final ApiService _apiService;
 
   List<Farm> _farms = [];
@@ -112,26 +157,41 @@ class FarmProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> updateFarm(String farmId, Farm farm) async {
+  Future<void> updateFarm(Farm farm) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      final updatedFarm = await _apiService.updateFarm(farmId, farm);
-      final index = _farms.indexWhere((f) => f.id == farmId);
+      // Update locally first
+      final index = _farms.indexWhere((f) => f.id == farm.id);
       if (index != -1) {
-        _farms[index] = updatedFarm;
+        _farms[index] = farm.copyWith(
+          isSynced: false,
+          updatedAt: DateTime.now(),
+        );
+        notifyListeners();
       }
-      if (_selectedFarm?.id == farmId) {
-        _selectedFarm = updatedFarm;
+
+      // Try to sync with backend
+      try {
+        final serverFarm = await _apiService.updateFarm(farm.id, farm);
+
+        // Update local farm with server data
+        if (index != -1) {
+          _farms[index] = serverFarm;
+        }
+      } catch (e) {
+        debugPrint('Failed to sync farm update with server: $e');
       }
+
       _isLoading = false;
       notifyListeners();
     } catch (e) {
       _isLoading = false;
       _error = e.toString();
       notifyListeners();
+      rethrow;
     }
   }
 
@@ -141,17 +201,33 @@ class FarmProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _apiService.deleteFarm(farmId);
-      _farms.removeWhere((farm) => farm.id == farmId);
-      if (_selectedFarm?.id == farmId) {
-        _selectedFarm = null;
+      // Mark as deleted locally
+      final index = _farms.indexWhere((f) => f.id == farmId);
+      if (index != -1) {
+        _farms[index] = _farms[index].copyWith(
+          isDeleted: true,
+          isSynced: false,
+          updatedAt: DateTime.now(),
+        );
+        notifyListeners();
       }
+
+      // Try to sync with backend
+      try {
+        await _apiService.deleteFarm(farmId);
+        // Remove from local list if sync successful
+        _farms.removeWhere((f) => f.id == farmId);
+      } catch (e) {
+        debugPrint('Failed to sync farm deletion with server: $e');
+      }
+
       _isLoading = false;
       notifyListeners();
     } catch (e) {
       _isLoading = false;
       _error = e.toString();
       notifyListeners();
+      rethrow;
     }
   }
 
@@ -349,65 +425,36 @@ class FarmProvider extends ChangeNotifier {
   }
 
   // Sync functionality
-  Future<void> syncFarms() async {
+  Future<void> syncWithServer() async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
+      // Get all farms that need syncing
       final farmsToSync =
-          _farms
-              .map(
-                (farm) => {
-                  'farm_id': farm.id,
-                  'name': farm.name,
-                  'current_season_month': farm.currentSeasonMonth,
-                  'last_local_update': farm.updatedAt.toIso8601String(),
-                },
-              )
-              .toList();
+          _farms.where((f) => !f.isSynced || f.isDeleted).toList();
 
-      final syncTimestamp = await _apiService.syncFarms(farmsToSync);
+      if (farmsToSync.isNotEmpty) {
+        // Sync farms
+        final syncResult = await _apiService.syncFarms(
+          farmsToSync.map((f) => f.toJson()).toList(),
+        );
 
-      // Update local farms with sync timestamp
-      _farms =
-          _farms
-              .map((farm) => farm.copyWith(lastSyncedAt: syncTimestamp))
-              .toList();
-
-      _isLoading = false;
-      notifyListeners();
-    } catch (e) {
-      _isLoading = false;
-      _error = e.toString();
-      notifyListeners();
-    }
-  }
-
-  Future<void> syncNotes() async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
-    try {
-      // Filter notes that need syncing (not synced or deleted)
-      final notesToSync =
-          _notes.where((note) => !note.isSynced || note.isDeleted).toList();
-
-      if (notesToSync.isNotEmpty) {
-        final syncTimestamp = await _apiService.syncNotes(notesToSync);
-
-        // Update local notes with sync status
-        _notes =
-            _notes.map((note) {
-              if (notesToSync.any((n) => n.id == note.id)) {
-                return note.copyWith(isSynced: true);
+        // Update local farms with sync status
+        _farms =
+            _farms.map((farm) {
+              if (farmsToSync.any((f) => f.id == farm.id)) {
+                return farm.copyWith(
+                  isSynced: true,
+                  lastSyncedAt: DateTime.now(),
+                );
               }
-              return note;
+              return farm;
             }).toList();
 
-        // Remove locally deleted notes that have been synced
-        _notes.removeWhere((note) => note.isDeleted && note.isSynced);
+        // Remove locally deleted farms that have been synced
+        _farms.removeWhere((f) => f.isDeleted && f.isSynced);
       }
 
       _isLoading = false;
@@ -416,6 +463,32 @@ class FarmProvider extends ChangeNotifier {
       _isLoading = false;
       _error = e.toString();
       notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<void> loadAllFarms(String farmerId) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      // Try to load from server first
+      try {
+        final farms = await _apiService.getFarms(farmerId);
+        _farms = farms;
+      } catch (e) {
+        debugPrint('Failed to load farms from server: $e');
+        // If server load fails, keep existing local farms
+      }
+
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _isLoading = false;
+      _error = e.toString();
+      notifyListeners();
+      rethrow;
     }
   }
 

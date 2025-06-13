@@ -11,11 +11,31 @@ import 'base_auth_service.dart';
 class AuthService implements BaseAuthService {
   final String baseUrl;
   final http.Client _httpClient;
-  final StreamController<User?> _userController = StreamController<User?>.broadcast();
+  final StreamController<User?> _userController =
+      StreamController<User?>.broadcast();
 
   AuthService({required this.baseUrl, http.Client? httpClient})
-      : _httpClient = httpClient ?? http.Client() {
+    : _httpClient = httpClient ?? http.Client() {
     debugPrint('🔧 AuthService initialized with baseUrl: $baseUrl');
+  }
+
+  @override
+  Future<User> signUp({
+    required String email,
+    required String password,
+    required String displayName,
+    required String phone,
+    required String district,
+    required String village,
+  }) async {
+    return register(
+      email: email,
+      password: password,
+      fullName: displayName,
+      phone: phone,
+      district: district,
+      village: village,
+    );
   }
 
   // Store the auth token
@@ -57,7 +77,9 @@ class AuthService implements BaseAuthService {
         try {
           _currentUser = await _fetchCurrentUser();
           _userController.add(_currentUser);
-          debugPrint('✅ Current user fetched successfully: ${_currentUser?.email}');
+          debugPrint(
+            '✅ Current user fetched successfully: ${_currentUser?.email}',
+          );
         } catch (e) {
           debugPrint('❌ Error fetching current user: $e');
           // Token might be invalid, clear it
@@ -102,20 +124,25 @@ class AuthService implements BaseAuthService {
     try {
       debugPrint('🌐 Making HTTP POST request...');
 
-      final response = await _httpClient.post(
-        Uri.parse(endpoint),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: jsonEncode(requestBody),
-      ).timeout(
-        const Duration(seconds: 30),
-        onTimeout: () {
-          debugPrint('⏰ Request timed out after 30 seconds');
-          throw TimeoutException('Request timed out', const Duration(seconds: 30));
-        },
-      );
+      final response = await _httpClient
+          .post(
+            Uri.parse(endpoint),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode(requestBody),
+          )
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () {
+              debugPrint('⏰ Request timed out after 30 seconds');
+              throw TimeoutException(
+                'Request timed out',
+                const Duration(seconds: 30),
+              );
+            },
+          );
 
       debugPrint('📥 Response received');
       debugPrint('📊 Status Code: ${response.statusCode}');
@@ -137,11 +164,17 @@ class AuthService implements BaseAuthService {
       }
     } on SocketException catch (e) {
       debugPrint('🔌 Socket Exception: $e');
-      debugPrint('🔌 This usually means network connectivity issues or the server is unreachable');
-      throw Exception('Network error. Please check your internet connection and try again.');
+      debugPrint(
+        '🔌 This usually means network connectivity issues or the server is unreachable',
+      );
+      throw Exception(
+        'Network error. Please check your internet connection and try again.',
+      );
     } on TimeoutException catch (e) {
       debugPrint('⏰ Timeout Exception: $e');
-      throw Exception('Request timed out. Please check your internet connection and try again.');
+      throw Exception(
+        'Request timed out. Please check your internet connection and try again.',
+      );
     } on http.ClientException catch (e) {
       debugPrint('🌐 HTTP Client Exception: $e');
       throw Exception('Network error. Please check your internet connection.');
@@ -168,20 +201,25 @@ class AuthService implements BaseAuthService {
     try {
       debugPrint('🌐 Making HTTP POST request...');
 
-      final response = await _httpClient.post(
-        Uri.parse(endpoint),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: jsonEncode(requestBody),
-      ).timeout(
-        const Duration(seconds: 30),
-        onTimeout: () {
-          debugPrint('⏰ Login request timed out after 30 seconds');
-          throw TimeoutException('Request timed out', const Duration(seconds: 30));
-        },
-      );
+      final response = await _httpClient
+          .post(
+            Uri.parse(endpoint),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode(requestBody),
+          )
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () {
+              debugPrint('⏰ Login request timed out after 30 seconds');
+              throw TimeoutException(
+                'Request timed out',
+                const Duration(seconds: 30),
+              );
+            },
+          );
 
       debugPrint('📥 Login response received');
       debugPrint('📊 Status Code: ${response.statusCode}');
@@ -203,10 +241,14 @@ class AuthService implements BaseAuthService {
       }
     } on SocketException catch (e) {
       debugPrint('🔌 Socket Exception during login: $e');
-      throw Exception('Network error. Please check your internet connection and try again.');
+      throw Exception(
+        'Network error. Please check your internet connection and try again.',
+      );
     } on TimeoutException catch (e) {
       debugPrint('⏰ Timeout Exception during login: $e');
-      throw Exception('Request timed out. Please check your internet connection and try again.');
+      throw Exception(
+        'Request timed out. Please check your internet connection and try again.',
+      );
     } on http.ClientException catch (e) {
       debugPrint('🌐 HTTP Client Exception during login: $e');
       throw Exception('Network error. Please check your internet connection.');
@@ -232,20 +274,25 @@ class AuthService implements BaseAuthService {
     debugPrint('📡 Endpoint: $endpoint');
 
     try {
-      final response = await _httpClient.post(
-        Uri.parse(endpoint),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: jsonEncode({'refresh_token': _refreshToken}),
-      ).timeout(
-        const Duration(seconds: 30),
-        onTimeout: () {
-          debugPrint('⏰ Token refresh timed out');
-          throw TimeoutException('Request timed out', const Duration(seconds: 30));
-        },
-      );
+      final response = await _httpClient
+          .post(
+            Uri.parse(endpoint),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode({'refresh_token': _refreshToken}),
+          )
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () {
+              debugPrint('⏰ Token refresh timed out');
+              throw TimeoutException(
+                'Request timed out',
+                const Duration(seconds: 30),
+              );
+            },
+          );
 
       debugPrint('📥 Token refresh response received');
       debugPrint('📊 Status Code: ${response.statusCode}');
@@ -288,13 +335,15 @@ class AuthService implements BaseAuthService {
         final endpoint = '$baseUrl/auth/logout';
         debugPrint('📡 Logout endpoint: $endpoint');
 
-        await _httpClient.post(
-          Uri.parse(endpoint),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $_token',
-          },
-        ).timeout(const Duration(seconds: 10));
+        await _httpClient
+            .post(
+              Uri.parse(endpoint),
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer $_token',
+              },
+            )
+            .timeout(const Duration(seconds: 10));
 
         debugPrint('✅ Server logout successful');
       }
@@ -533,7 +582,10 @@ class AuthService implements BaseAuthService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('access_token', _token!);
     await prefs.setString('refresh_token', _refreshToken!);
-    await prefs.setString('token_expires_at', _tokenExpiresAt!.toIso8601String());
+    await prefs.setString(
+      'token_expires_at',
+      _tokenExpiresAt!.toIso8601String(),
+    );
 
     debugPrint('✅ Tokens saved to SharedPreferences');
   }
@@ -555,7 +607,9 @@ class AuthService implements BaseAuthService {
 
   bool _isTokenExpired() {
     if (_tokenExpiresAt == null) return true;
-    final isExpired = DateTime.now().isAfter(_tokenExpiresAt!.subtract(const Duration(minutes: 5)));
+    final isExpired = DateTime.now().isAfter(
+      _tokenExpiresAt!.subtract(const Duration(minutes: 5)),
+    );
     if (isExpired) {
       debugPrint('⏰ Token is expired');
     }

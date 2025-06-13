@@ -25,6 +25,11 @@ class NotificationGenerator {
         await _notificationService.showNotification(
           title: notification.title,
           body: notification.body,
+          payload: {
+            'type': 'season',
+            'season_id': season.id,
+            'month': currentMonth.toString(),
+          },
         );
 
         // Mark notification as sent
@@ -35,11 +40,70 @@ class NotificationGenerator {
           id: id,
           title: notification.title,
           body: notification.body,
+          type: 'season',
           seasonId: season.id,
           timestamp: DateTime.now(),
         );
       }
     }
+  }
+
+  Future<void> generateTaskNotification({
+    required String title,
+    required String body,
+    required String taskId,
+    DateTime? scheduledDate,
+  }) async {
+    final id = 'task_$taskId';
+
+    if (scheduledDate != null) {
+      await _notificationService.scheduleNotification(
+        title: title,
+        body: body,
+        scheduledDate: scheduledDate,
+        payload: {'type': 'task', 'task_id': taskId},
+      );
+    } else {
+      await _notificationService.showNotification(
+        title: title,
+        body: body,
+        payload: {'type': 'task', 'task_id': taskId},
+      );
+    }
+
+    // Store in history
+    await _addToHistory(
+      id: id,
+      title: title,
+      body: body,
+      type: 'task',
+      taskId: taskId,
+      timestamp: scheduledDate ?? DateTime.now(),
+    );
+  }
+
+  Future<void> generateWeatherAlert({
+    required String title,
+    required String body,
+    required String alertId,
+  }) async {
+    final id = 'weather_$alertId';
+
+    await _notificationService.showNotification(
+      title: title,
+      body: body,
+      payload: {'type': 'weather', 'alert_id': alertId},
+    );
+
+    // Store in history
+    await _addToHistory(
+      id: id,
+      title: title,
+      body: body,
+      type: 'weather',
+      alertId: alertId,
+      timestamp: DateTime.now(),
+    );
   }
 
   List<_SeasonNotification> _getNotificationsForMonth(int month) {
@@ -52,6 +116,12 @@ class NotificationGenerator {
             body:
                 'Time to prepare your soil for the new growing season. Check soil pH and add necessary amendments.',
           ),
+          _SeasonNotification(
+            id: 'plan_crops',
+            title: 'Crop Planning',
+            body:
+                'Plan your crops for the season. Consider crop rotation and companion planting.',
+          ),
         ];
       case 2:
         return [
@@ -61,6 +131,12 @@ class NotificationGenerator {
             body:
                 'Optimal time to plant your crops. Ensure proper spacing and depth.',
           ),
+          _SeasonNotification(
+            id: 'irrigation',
+            title: 'Irrigation Setup',
+            body:
+                'Set up your irrigation system and ensure proper water distribution.',
+          ),
         ];
       case 3:
         return [
@@ -69,6 +145,11 @@ class NotificationGenerator {
             title: 'First Fertilizer Application',
             body:
                 'Apply the first round of fertilizer to support early growth.',
+          ),
+          _SeasonNotification(
+            id: 'pest_check',
+            title: 'Pest Monitoring',
+            body: 'Start monitoring for early signs of pests and diseases.',
           ),
         ];
       // Add more months with their specific notifications
@@ -81,7 +162,10 @@ class NotificationGenerator {
     required String id,
     required String title,
     required String body,
-    required String seasonId,
+    required String type,
+    String? seasonId,
+    String? taskId,
+    String? alertId,
     required DateTime timestamp,
   }) async {
     final history = await _localStorage.getList('notification_history') ?? [];
@@ -90,7 +174,10 @@ class NotificationGenerator {
       'id': id,
       'title': title,
       'body': body,
+      'type': type,
       'season_id': seasonId,
+      'task_id': taskId,
+      'alert_id': alertId,
       'timestamp': timestamp.toIso8601String(),
       'is_read': false,
     });
@@ -114,6 +201,10 @@ class NotificationGenerator {
         }).toList();
 
     await _localStorage.setList('notification_history', updatedHistory);
+  }
+
+  Future<void> clearHistory() async {
+    await _localStorage.remove('notification_history');
   }
 }
 

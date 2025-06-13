@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../constants/app_colors.dart';
+import '../../screens/profile/edit_profile_screen.dart';
 import '../../../constants/app_text_styles.dart';
 import '../../../constants/assets_path.dart';
 import '../../../constants/strings.dart';
@@ -16,6 +17,7 @@ import '../auth/login_screen.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../farm_notes/farm_notes_screen.dart';
 import '../seasons/seasons_screen.dart';
+import '../contact/contact_screen.dart';
 
 class ProfileSettingsScreen extends StatefulWidget {
   const ProfileSettingsScreen({Key? key}) : super(key: key);
@@ -82,14 +84,18 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     switch (index) {
       case 0:
         NavigationHelper.navigateToReplacement(
-            context, const DashboardScreen());
+          context,
+          const DashboardScreen(),
+        );
         break;
       case 1:
         NavigationHelper.navigateToReplacement(context, const SeasonsScreen());
         break;
       case 2:
         NavigationHelper.navigateToReplacement(
-            context, const FarmNotesScreen());
+          context,
+          const FarmNotesScreen(),
+        );
         break;
       case 3:
         // Already on profile
@@ -107,18 +113,12 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
       appBar: AppBar(
         title: const Text(
           'Edit Profile',
-          style: TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back,
-            color: Colors.black,
-          ),
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () {
             Navigator.pop(context);
           },
@@ -140,16 +140,18 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                         CircleAvatar(
                           radius: 50,
                           backgroundColor: Colors.grey[200],
-                          backgroundImage: _profileImage != null
-                              ? FileImage(_profileImage!)
-                              : null,
-                          child: _profileImage == null
-                              ? const Icon(
-                                  Icons.person,
-                                  size: 50,
-                                  color: Colors.grey,
-                                )
-                              : null,
+                          backgroundImage:
+                              _profileImage != null
+                                  ? FileImage(_profileImage!)
+                                  : null,
+                          child:
+                              _profileImage == null
+                                  ? const Icon(
+                                    Icons.person,
+                                    size: 50,
+                                    color: Colors.grey,
+                                  )
+                                  : null,
                         ),
                         Positioned(
                           bottom: 0,
@@ -200,7 +202,9 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                         decoration: const InputDecoration(
                           hintText: 'Enter your name',
                           contentPadding: EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 16),
+                            horizontal: 16,
+                            vertical: 16,
+                          ),
                           border: InputBorder.none,
                           hintStyle: TextStyle(color: Colors.grey),
                         ),
@@ -232,7 +236,9 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                         enabled: false,
                         decoration: const InputDecoration(
                           contentPadding: EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 16),
+                            horizontal: 16,
+                            vertical: 16,
+                          ),
                           border: InputBorder.none,
                           fillColor: Color(0xFFF5F5F5),
                           filled: true,
@@ -261,11 +267,11 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                         validator: FormValidators.validatePhone,
                         decoration: const InputDecoration(
                           labelText: "Phone Number (+256)",
-                          labelStyle: TextStyle(
-                            fontWeight: FontWeight.w900,
-                          ),
+                          labelStyle: TextStyle(fontWeight: FontWeight.w900),
                           contentPadding: EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 16),
+                            horizontal: 16,
+                            vertical: 16,
+                          ),
                           border: InputBorder.none,
                         ),
                       ),
@@ -289,11 +295,11 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                         },
                         decoration: const InputDecoration(
                           labelText: "District",
-                          labelStyle: TextStyle(
-                            fontWeight: FontWeight.w900,
-                          ),
+                          labelStyle: TextStyle(fontWeight: FontWeight.w900),
                           contentPadding: EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 16),
+                            horizontal: 16,
+                            vertical: 16,
+                          ),
                           border: InputBorder.none,
                         ),
                       ),
@@ -317,11 +323,11 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                         },
                         decoration: const InputDecoration(
                           labelText: "Village",
-                          labelStyle: TextStyle(
-                            fontWeight: FontWeight.w900,
-                          ),
+                          labelStyle: TextStyle(fontWeight: FontWeight.w900),
                           contentPadding: EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 16),
+                            horizontal: 16,
+                            vertical: 16,
+                          ),
                           border: InputBorder.none,
                         ),
                       ),
@@ -347,7 +353,9 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                         decoration: const InputDecoration(
                           hintText: '••••••••',
                           contentPadding: EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 16),
+                            horizontal: 16,
+                            vertical: 16,
+                          ),
                           border: InputBorder.none,
                           fillColor: Color(0xFFF5F5F5),
                           filled: true,
@@ -374,18 +382,22 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                         value: farmProvider.farms.length.toString(),
                         decoration: const InputDecoration(
                           contentPadding: EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 16),
+                            horizontal: 16,
+                            vertical: 16,
+                          ),
                           border: InputBorder.none,
                           fillColor: Color(0xFFF5F5F5),
                           filled: true,
                         ),
-                        items: [farmProvider.farms.length.toString()]
-                            .map((String value) {
-                          return DropdownMenuItem<String>(
-                            value: value,
-                            child: Text(value),
-                          );
-                        }).toList(),
+                        items:
+                            [farmProvider.farms.length.toString()].map((
+                              String value,
+                            ) {
+                              return DropdownMenuItem<String>(
+                                value: value,
+                                child: Text(value),
+                              );
+                            }).toList(),
                         onChanged: null,
                       ),
                     ),
@@ -405,28 +417,32 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                         borderRadius: BorderRadius.circular(30),
                       ),
                       child: DropdownButtonFormField<String>(
-                        value: farmProvider.seasons
-                            .where((s) => s.status == SeasonStatus.active)
-                            .length
-                            .toString(),
+                        value:
+                            farmProvider.seasons
+                                .where((s) => s.status == SeasonStatus.active)
+                                .length
+                                .toString(),
                         decoration: const InputDecoration(
                           contentPadding: EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 16),
+                            horizontal: 16,
+                            vertical: 16,
+                          ),
                           border: InputBorder.none,
                           fillColor: Color(0xFFF5F5F5),
                           filled: true,
                         ),
-                        items: [
-                          farmProvider.seasons
-                              .where((s) => s.status == SeasonStatus.active)
-                              .length
-                              .toString()
-                        ].map((String value) {
-                          return DropdownMenuItem<String>(
-                            value: value,
-                            child: Text(value),
-                          );
-                        }).toList(),
+                        items:
+                            [
+                              farmProvider.seasons
+                                  .where((s) => s.status == SeasonStatus.active)
+                                  .length
+                                  .toString(),
+                            ].map((String value) {
+                              return DropdownMenuItem<String>(
+                                value: value,
+                                child: Text(value),
+                              );
+                            }).toList(),
                         onChanged: null,
                       ),
                     ),
@@ -436,7 +452,9 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                     Container(
                       width: double.infinity,
                       margin: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
                       child: Container(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
@@ -501,7 +519,9 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                     Container(
                       width: double.infinity,
                       margin: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
                       child: Container(
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
@@ -559,6 +579,13 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
       bottomNavigationBar: CustomNavigationBar(
         currentIndex: _currentIndex,
         onTap: _onNavigationTap,
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          NavigationHelper.navigateTo(context, const ContactScreen());
+        },
+        backgroundColor: AppColors.primaryGreen,
+        child: const Icon(Icons.contact_phone),
       ),
     );
   }

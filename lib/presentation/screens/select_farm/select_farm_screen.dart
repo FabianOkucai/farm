@@ -197,7 +197,7 @@ class SelectFarmScreen extends StatelessWidget {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                '${farm.size} acres • ${farm.village}, ${farm.district}',
+                                '${farm.size ?? 0} acres • ${farm.village ?? 'Unknown'}, ${farm.district ?? 'Unknown'}',
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: Colors.grey[600],

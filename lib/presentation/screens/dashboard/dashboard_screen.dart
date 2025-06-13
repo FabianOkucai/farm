@@ -17,6 +17,7 @@ import '../select_farm/select_farm_screen.dart';
 import '../schedule/schedule_screen.dart';
 import '../../providers/notification_provider.dart';
 import '../notifications/notifications_screen.dart';
+import '../contact/contact_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
@@ -200,6 +201,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
       bottomNavigationBar: CustomNavigationBar(
         currentIndex: _currentIndex,
         onTap: _onNavigationTap,
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          NavigationHelper.navigateTo(context, const ContactScreen());
+        },
+        backgroundColor: AppColors.primaryGreen,
+        child: const Icon(Icons.contact_phone),
       ),
     );
   }

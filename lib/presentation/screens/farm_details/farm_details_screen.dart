@@ -110,7 +110,7 @@ class _FarmDetailsScreenState extends State<FarmDetailsScreen> {
         plantingDate: _selectedPlantingDate!,
       );
 
-      await farmProvider.updateFarm(farmProvider.selectedFarm!.id, updatedFarm);
+      await farmProvider.updateFarm(updatedFarm);
 
       if (mounted) {
         _toggleEditing();
