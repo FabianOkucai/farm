@@ -4,14 +4,16 @@ import '../models/farm.dart';
 import '../models/note.dart';
 import '../models/season.dart';
 import '../models/season_data.dart';
+import '../../constants/config.dart';
 
 class ApiService {
   final String baseUrl;
   final http.Client _httpClient;
   bool _isOffline = false;
 
-  ApiService({required this.baseUrl, http.Client? httpClient})
-    : _httpClient = httpClient ?? http.Client();
+  ApiService({String? baseUrl, http.Client? httpClient})
+      : baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
+        _httpClient = httpClient ?? http.Client();
 
   // Farms API
   Future<List<Farm>> getFarms(String farmerId) async {

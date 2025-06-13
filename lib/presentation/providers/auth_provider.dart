@@ -1,3 +1,4 @@
+// lib/presentation/providers/auth_provider.dart
 import 'package:flutter/material.dart';
 import '../../core/models/user.dart';
 import '../../core/services/auth_service.dart';
@@ -7,19 +8,20 @@ import '../../constants/config.dart';
 import 'dart:io';
 
 class AuthProvider extends ChangeNotifier {
-  static const bool useMockService = true; // Set to false to use real service
+  static const bool useMockService = false; // Set to true for testing
 
   final BaseAuthService _authService;
 
   User? _user;
   bool _isLoading = false;
   String? _error;
+  bool _isInitialized = false;
 
   AuthProvider({BaseAuthService? authService})
       : _authService = authService ??
-            (useMockService
-                ? MockAuthService()
-                : AuthService(baseUrl: AppConfig.apiBaseUrl)) {
+      (useMockService
+          ? MockAuthService()
+          : AuthService(baseUrl: AppConfig.apiBaseUrl)) {
     _init();
   }
 
@@ -27,12 +29,25 @@ class AuthProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get isAuthenticated => _user != null;
+  bool get isInitialized => _isInitialized;
 
-  void _init() {
-    _authService.user.listen((user) {
-      _user = user;
+  Future<void> _init() async {
+    try {
+      // Initialize the auth service
+      await _authService.init();
+
+      // Check if user is already authenticated
+      if (_authService.isAuthenticated) {
+        _user = await _authService.getCurrentUser();
+      }
+
+      _isInitialized = true;
       notifyListeners();
-    });
+    } catch (e) {
+      _error = 'Failed to initialize authentication: ${e.toString()}';
+      _isInitialized = true;
+      notifyListeners();
+    }
   }
 
   Future<void> signUp({
@@ -43,9 +58,8 @@ class AuthProvider extends ChangeNotifier {
     required String district,
     required String village,
   }) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
+    _setLoading(true);
+    _clearError();
 
     try {
       _user = await _authService.register(
@@ -56,12 +70,12 @@ class AuthProvider extends ChangeNotifier {
         district: district,
         village: village,
       );
-      _isLoading = false;
-      notifyListeners();
+
+      _setLoading(false);
     } catch (e) {
-      _isLoading = false;
-      _error = e.toString();
-      notifyListeners();
+      _setLoading(false);
+      _setError(_parseError(e));
+      rethrow;
     }
   }
 
@@ -69,54 +83,47 @@ class AuthProvider extends ChangeNotifier {
     required String email,
     required String password,
   }) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
+    _setLoading(true);
+    _clearError();
 
     try {
       _user = await _authService.signIn(
         email: email,
         password: password,
       );
-      _isLoading = false;
-      notifyListeners();
+
+      _setLoading(false);
     } catch (e) {
-      _isLoading = false;
-      _error = e.toString();
-      notifyListeners();
+      _setLoading(false);
+      _setError(_parseError(e));
+      rethrow;
     }
   }
 
   Future<void> signOut() async {
-    _isLoading = true;
-    notifyListeners();
+    _setLoading(true);
+    _clearError();
 
     try {
       await _authService.signOut();
       _user = null;
-      _isLoading = false;
-      notifyListeners();
+      _setLoading(false);
     } catch (e) {
-      _isLoading = false;
-      _error = e.toString();
-      notifyListeners();
+      _setLoading(false);
+      _setError(_parseError(e));
     }
   }
 
   Future<void> resetPassword(String email) async {
+    _setLoading(true);
+    _clearError();
+
     try {
-      _isLoading = true;
-      notifyListeners();
-
       await _authService.resetPassword(email);
-
-      _isLoading = false;
-      _error = null;
-      notifyListeners();
+      _setLoading(false);
     } catch (e) {
-      _isLoading = false;
-      _error = e.toString();
-      notifyListeners();
+      _setLoading(false);
+      _setError(_parseError(e));
       rethrow;
     }
   }
@@ -128,59 +135,95 @@ class AuthProvider extends ChangeNotifier {
     required String village,
     File? profileImage,
   }) async {
+    _setLoading(true);
+    _clearError();
+
     try {
-      _isLoading = true;
-      notifyListeners();
+      String? photoURL;
+
+      // Upload profile image if provided
+      if (profileImage != null) {
+        // You'll need to implement image upload service
+        // photoURL = await _uploadProfileImage(profileImage);
+      }
 
       _user = await _authService.updateProfile(
         displayName: displayName,
         phone: phone,
         district: district,
         village: village,
+        photoURL: photoURL,
       );
 
-      _isLoading = false;
-      notifyListeners();
+      _setLoading(false);
     } catch (e) {
-      _isLoading = false;
-      _error = e.toString();
-      notifyListeners();
+      _setLoading(false);
+      _setError(_parseError(e));
       rethrow;
     }
   }
 
   Future<void> updatePassword(String password) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
+    _setLoading(true);
+    _clearError();
 
     try {
       await _authService.updatePassword(password);
-      _isLoading = false;
+      _setLoading(false);
+    } catch (e) {
+      _setLoading(false);
+      _setError(_parseError(e));
+      rethrow;
+    }
+  }
+
+  Future<void> refreshToken() async {
+    try {
+      await _authService.refreshToken();
+      // Optionally refresh user data
+      _user = await _authService.getCurrentUser();
       notifyListeners();
     } catch (e) {
-      _isLoading = false;
-      _error = e.toString();
+      // Handle token refresh failure
+      _setError('Session expired. Please log in again.');
+      _user = null;
       notifyListeners();
     }
   }
 
-  Future<void> logout() async {
-    _isLoading = true;
+  // Helper methods
+  void _setLoading(bool loading) {
+    _isLoading = loading;
+    notifyListeners();
+  }
+
+  void _setError(String error) {
+    _error = error;
+    notifyListeners();
+  }
+
+  void _clearError() {
     _error = null;
     notifyListeners();
-
-    try {
-      await _authService.signOut();
-      _user = null;
-      _isLoading = false;
-      notifyListeners();
-    } catch (e) {
-      _isLoading = false;
-      _error = e.toString();
-      notifyListeners();
-    }
   }
+
+  String _parseError(dynamic error) {
+    if (error is Exception) {
+      final message = error.toString();
+      if (message.contains('Exception:')) {
+        return message.replaceFirst('Exception: ', '');
+      }
+      return message;
+    }
+    return error.toString();
+  }
+
+  void clearError() {
+    _clearError();
+  }
+
+  // Legacy methods for backward compatibility
+  Future<void> logout() => signOut();
 
   Future<void> register({
     required String email,
@@ -189,32 +232,12 @@ class AuthProvider extends ChangeNotifier {
     required String phone,
     required String district,
     required String village,
-  }) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
-    try {
-      _user = await _authService.register(
-        email: email,
-        password: password,
-        fullName: fullName,
-        phone: phone,
-        district: district,
-        village: village,
-      );
-      _isLoading = false;
-      notifyListeners();
-    } catch (e) {
-      _isLoading = false;
-      _error = e.toString();
-      notifyListeners();
-      throw e;
-    }
-  }
-
-  void clearError() {
-    _error = null;
-    notifyListeners();
-  }
+  }) => signUp(
+    email: email,
+    password: password,
+    displayName: fullName,
+    phone: phone,
+    district: district,
+    village: village,
+  );
 }
