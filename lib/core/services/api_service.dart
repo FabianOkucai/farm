@@ -12,39 +12,163 @@ import '../../constants/config.dart';
 
 class ApiService {
   /// Create a farm with or without uuid. Returns {'farm': ..., 'uuid': ...}
+// Complete createFarmWithUuid method - replace the entire existing method with this
   Future<Map<String, dynamic>> createFarmWithUuid(
-    Farm farm, {
-    String? uuid,
-  }) async {
+      Farm farm, {
+        String? uuid,
+        String? farmerName,
+      }) async {
     try {
       if (_isOffline) {
-        return {'farm': _createMockFarm(farm), 'uuid': uuid ?? 'mock_uuid'};
+        return {
+          'farm': _createMockFarm(farm),
+          'uuid': uuid ?? 'mock_uuid_${DateTime.now().millisecondsSinceEpoch}',
+          'current_season': _createMockCurrentSeason(),
+          'all_seasons_summary': uuid == null ? _createMockAllSeasons() : null,
+        };
       }
-      final Map<String, dynamic> payload = farm.toJson();
-      if (uuid != null && uuid.isNotEmpty) {
-        payload['uuid'] = uuid;
-      }
-      final response = await _httpClient.post(
-        Uri.parse('baseUrl/farms'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(payload),
-      );
-      if (response.statusCode == 201) {
-        final Map<String, dynamic> responseData = json.decode(response.body);
-        if (responseData['status'] == 'success' &&
-            responseData['data'] != null) {
-          final farmData = responseData['data']['farm'] ?? responseData['data'];
-          final returnedUuid = responseData['data']['uuid'] ?? uuid;
-          return {'farm': farmData, 'uuid': returnedUuid};
-        }
-        throw Exception('Invalid response format');
+
+      // 🔧 BUILD PROPER REQUEST PAYLOAD
+      Map<String, dynamic> requestBody;
+
+      if (uuid == null || uuid.isEmpty) {
+        // 🆕 FIRST FARM - Laravel expects farmer + farm data
+        debugPrint('🆕 Building first farm payload with farmer data');
+
+        requestBody = {
+          // Farmer information (required for first farm)
+          'farmer_name': farmerName ?? 'Unknown Farmer',
+
+          // Farm information with correct field names
+          'farm_name': farm.name,                    // ✅ farm.name → farm_name
+          'farm_size': farm.size,                    // ✅ farm.size → farm_size
+          'farm_district': farm.district,            // ✅ farm.district → farm_district
+          'farm_village': farm.village,              // ✅ farm.village → farm_village
+          'planting_date': _formatDateForLaravel(farm.plantingDate), // ✅ ISO → YYYY-MM-DD
+        };
+
+        debugPrint('📤 First farm payload: ${requestBody.keys.join(', ')}');
+
       } else {
-        throw Exception('Failed to create farm: {response.statusCode}');
+        // 🔄 SUBSEQUENT FARM - Laravel expects only farm data
+        debugPrint('🔄 Building subsequent farm payload (farm data only)');
+
+        requestBody = {
+          // Only farm information (no farmer data needed)
+          'farm_name': farm.name,                    // ✅ Correct field name
+          'farm_size': farm.size,                    // ✅ Correct field name
+          'farm_district': farm.district,            // ✅ Correct field name
+          'farm_village': farm.village,              // ✅ Correct field name
+          'planting_date': _formatDateForLaravel(farm.plantingDate), // ✅ Correct format
+        };
+
+        debugPrint('📤 Subsequent farm payload: ${requestBody.keys.join(', ')}');
+      }
+
+      // 🚫 EXCLUDED FIELDS (that farm.toJson() would include but Laravel doesn't want):
+      // - id (backend generates this)
+      // - farmer_id (not used in this format)
+      // - current_season_month (backend calculates this)
+      // - created_at, updated_at (backend sets these)
+      // - last_synced_at, is_synced, is_deleted (frontend metadata)
+
+      debugPrint('📡 Sending farm creation request to: POST /farms');
+      debugPrint('📋 Payload size: ${requestBody.length} fields');
+
+      final response = await _makeRequest(
+        'POST',
+        '/farms',
+        body: requestBody,
+      );
+
+      if (response['status'] == 'success') {
+        final data = response['data'];
+        debugPrint('✅ Backend accepted request successfully');
+
+        // Handle different response structures
+        Map<String, dynamic> result = {};
+
+        // Extract farm data
+        if (data['farm'] != null) {
+          result['farm'] = data['farm'];
+          debugPrint('✅ Farm data received: ${data['farm']['id']}');
+        }
+
+        // Extract UUID (for first farm only)
+        if (data['farmer_uuid'] != null) {
+          result['uuid'] = data['farmer_uuid'];
+          debugPrint('🔑 New farmer UUID: ${data['farmer_uuid']}');
+        } else if (uuid != null) {
+          result['uuid'] = uuid;
+          debugPrint('🔑 Using existing UUID: ${uuid.substring(0, 8)}...');
+        }
+
+        // Extract current season
+        if (data['current_season'] != null) {
+          result['current_season'] = data['current_season'];
+          debugPrint('🌱 Current season: Month ${data['current_season']['month']}');
+        }
+
+        // Extract all seasons summary (first farm only)
+        if (data['all_seasons_summary'] != null) {
+          result['all_seasons_summary'] = data['all_seasons_summary'];
+          debugPrint('📅 Seasons summary: ${data['all_seasons_summary'].length} seasons');
+        }
+
+        return result;
+      } else {
+        throw Exception(response['message'] ?? 'Failed to create farm');
       }
     } catch (e) {
+      debugPrint('❌ Farm creation failed: $e');
       _isOffline = true;
-      return {'farm': _createMockFarm(farm), 'uuid': uuid ?? 'mock_uuid'};
+
+      // Return mock data as fallback
+      return {
+        'farm': _createMockFarm(farm),
+        'uuid': uuid ?? 'mock_uuid_${DateTime.now().millisecondsSinceEpoch}',
+        'current_season': _createMockCurrentSeason(),
+        'all_seasons_summary': uuid == null ? _createMockAllSeasons() : null,
+      };
     }
+  }
+
+// 🔧 ADD NEW HELPER METHOD for date formatting
+  String _formatDateForLaravel(DateTime date) {
+    // Convert from: 2023-03-15T10:30:00.000Z
+    // Convert to:   2023-03-15
+    return '${date.year.toString().padLeft(4, '0')}-'
+        '${date.month.toString().padLeft(2, '0')}-'
+        '${date.day.toString().padLeft(2, '0')}';
+  }
+
+// Helper method to create mock current season
+  Map<String, dynamic> _createMockCurrentSeason() {
+    return {
+      'month': 1,
+      'title': 'Land Preparation',
+      'short_description': 'Prepare the land for mango planting',
+      'full_instructions': 'Clear the land, test soil pH, and prepare planting holes...',
+      'activities': [
+        {
+          'title': 'Soil Testing',
+          'description': 'Test soil pH and nutrient levels'
+        },
+        {
+          'title': 'Land Clearing',
+          'description': 'Clear weeds and prepare the field'
+        }
+      ]
+    };
+  }
+
+// Helper method to create mock all seasons
+  List<Map<String, dynamic>> _createMockAllSeasons() {
+    return List.generate(12, (index) => {
+      'month': index + 1,
+      'title': 'Month ${index + 1} Activities',
+      'short_description': 'Important activities for month ${index + 1}',
+    });
   }
 
   final String baseUrl;
@@ -72,16 +196,20 @@ class ApiService {
     }
   }
 
+
   Future<Map<String, String>> _getHeaders() async {
     final headers = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
     };
 
-    // Add auth token if available
-    final userData = _localStorage.getUserData();
-    if (userData != null && userData['token'] != null) {
-      headers['Authorization'] = 'Bearer ${userData['token']}';
+    // Add UUID header if available (for existing farmers)
+    final uuid = _localStorage.getUuid();
+    if (uuid != null && uuid.isNotEmpty) {
+      headers['X-User-ID'] = uuid;
+      debugPrint('🔑 Adding X-User-ID header: ${uuid.substring(0, 8)}...');
+    } else {
+      debugPrint('🆕 No UUID found - treating as first-time user');
     }
 
     return headers;

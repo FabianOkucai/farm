@@ -31,7 +31,16 @@ class _AddFarmScreenState extends State<AddFarmScreen> {
   final _districtController = TextEditingController();
   final _villageController = TextEditingController();
   final _plantingDateController = TextEditingController();
+  final _farmerNameController = TextEditingController(); // 🆕 Add farmer name controller
+
   DateTime? _selectedPlantingDate;
+  bool _isFirstFarm = false; // 🆕 Track if this is first farm
+
+  @override
+  void initState() {
+    super.initState();
+    _checkIfFirstFarm(); // 🆕 Check farm status on init
+  }
 
   @override
   void dispose() {
@@ -40,6 +49,7 @@ class _AddFarmScreenState extends State<AddFarmScreen> {
     _districtController.dispose();
     _villageController.dispose();
     _plantingDateController.dispose();
+    _farmerNameController.dispose(); // 🆕 Dispose farmer name controller
     super.dispose();
   }
 
@@ -49,52 +59,99 @@ class _AddFarmScreenState extends State<AddFarmScreen> {
       initialDate: _selectedPlantingDate ?? DateTime.now(),
       firstDate: DateTime(2000),
       lastDate: DateTime.now(),
+      helpText: 'Select Planting Date',
+      confirmText: 'SELECT',
+      cancelText: 'CANCEL',
     );
+
     if (picked != null && picked != _selectedPlantingDate) {
       setState(() {
         _selectedPlantingDate = picked;
         _plantingDateController.text = picked.toIso8601String().split('T')[0];
       });
+      debugPrint('📅 Selected planting date: ${_plantingDateController.text}');
     }
   }
 
+  // 🆕 ADD METHOD to check if this is the first farm
+  Future<void> _checkIfFirstFarm() async {
+    final localStorage = await LocalStorage.init();
+    final uuid = localStorage.getUuid();
+    setState(() {
+      _isFirstFarm = uuid == null || uuid.isEmpty;
+    });
+    debugPrint('🔍 First farm check: $_isFirstFarm');
+  }
+
+  // 🔧 UPDATE _saveFarm method
   Future<void> _saveFarm() async {
     if (_formKey.currentState!.validate()) {
-      // final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final farmProvider = Provider.of<FarmProvider>(context, listen: false);
-
-      // Check for uuid in local storage
       final localStorage = await LocalStorage.init();
       final uuid = localStorage.getUuid();
 
+      debugPrint('🌱 Creating farm...');
+      debugPrint('📍 First farm: $_isFirstFarm');
+      debugPrint('🔑 Existing UUID: ${uuid != null ? '${uuid.substring(0, 8)}...' : 'none'}');
+
       final farm = Farm(
-        id: '', // Will be assigned by the server
+        id: '', // Will be assigned by server
         name: _nameController.text.trim(),
         size: double.parse(_sizeController.text.trim()),
         district: _districtController.text.trim(),
         village: _villageController.text.trim(),
-        farmerId: uuid ?? '', // Send uuid if exists, else empty
+        farmerId: uuid ?? '', // Will be updated with proper farmer ID from server
         plantingDate: _selectedPlantingDate!,
-        currentSeasonMonth: 1, // Starting with month 1
+        currentSeasonMonth: 1,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
 
-      // Pass uuid to provider
-      final responseUuid = await farmProvider.createFarmWithUuid(farm, uuid: uuid);
-
-      // Store uuid if returned from backend
-      if (responseUuid != null && responseUuid.isNotEmpty) {
-        await localStorage.setUuid(responseUuid);
+      // 🔧 Get farmer name for first farm
+      String? farmerName;
+      if (_isFirstFarm) {
+        farmerName = _farmerNameController.text.trim();
+        if (farmerName.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please enter your name for the first farm'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+        debugPrint('👤 Using farmer name: $farmerName');
       }
 
-      if (mounted) {
-        NavigationHelper.navigateToReplacement(
-          context,
-          widget.returnToNotes
-              ? const FarmNotesScreen()
-              : const DashboardScreen(),
+      try {
+        // 🔄 Call with proper farmer name
+        final returnedUuid = await farmProvider.createFarmWithUuid(
+          farm,
+          uuid: uuid,
+          farmerName: farmerName,
         );
+
+        // Store UUID if it's the first farm
+        if (returnedUuid != null && _isFirstFarm) {
+          await localStorage.setUuid(returnedUuid);
+          debugPrint('💾 Stored new farmer UUID: $returnedUuid');
+        }
+
+        if (mounted) {
+          NavigationHelper.navigateToReplacement(
+            context,
+            widget.returnToNotes ? const FarmNotesScreen() : const DashboardScreen(),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to create farm: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }
@@ -106,9 +163,9 @@ class _AddFarmScreenState extends State<AddFarmScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text(
-          Strings.farmDetails,
-          style: TextStyle(
+        title: Text(
+          _isFirstFarm ? 'Create Your Profile & First Farm' : Strings.farmDetails, // 🔧 Dynamic title
+          style: const TextStyle(
             color: Colors.black,
             fontWeight: FontWeight.bold,
             fontSize: 24,
@@ -134,14 +191,62 @@ class _AddFarmScreenState extends State<AddFarmScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // 🆕 Show info for first farm
+              if (_isFirstFarm) ...[
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryLightGreen.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppColors.primaryGreen.withOpacity(0.3),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        color: AppColors.primaryGreen,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'This is your first farm! Please provide your name and farm details.',
+                          style: TextStyle(
+                            color: AppColors.primaryGreen,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // 🆕 FARMER NAME FIELD (only for first farm)
+                _buildTextField(
+                  label: 'Your Name',
+                  controller: _farmerNameController,
+                  icon: Icons.person_outlined,
+                  validator: (value) => FormValidators.validateRequired(
+                    value,
+                    'Your Name',
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+
               Text(
-                Strings.addFarm,
+                _isFirstFarm ? 'Farm Details' : Strings.addFarm, // 🔧 Dynamic label
                 style: AppTextStyles.bodyLarge.copyWith(
                   fontWeight: FontWeight.w600,
                   fontSize: 18,
                 ),
               ),
               const SizedBox(height: 20),
+
+              // Existing farm fields...
               _buildTextField(
                 label: Strings.farmName,
                 controller: _nameController,
@@ -195,6 +300,8 @@ class _AddFarmScreenState extends State<AddFarmScreen> {
                 ),
               ),
               const SizedBox(height: 32),
+
+              // 🔧 Updated button text
               SizedBox(
                 width: double.infinity,
                 child: Container(
@@ -222,21 +329,21 @@ class _AddFarmScreenState extends State<AddFarmScreen> {
                     ),
                     child: farmProvider.isLoading
                         ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          )
-                        : const Text(
-                            'Save Farm',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor:
+                        AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                        : Text(
+                      _isFirstFarm ? 'Create Profile & Farm' : 'Save Farm', // 🔧 Dynamic text
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -247,6 +354,7 @@ class _AddFarmScreenState extends State<AddFarmScreen> {
     );
   }
 
+  // Existing _buildTextField method remains the same...
   Widget _buildTextField({
     required String label,
     required TextEditingController controller,
@@ -278,7 +386,7 @@ class _AddFarmScreenState extends State<AddFarmScreen> {
             color: AppColors.primaryGreen,
           ),
           contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           border: InputBorder.none,
         ),
       ),

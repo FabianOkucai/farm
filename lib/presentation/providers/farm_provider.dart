@@ -6,6 +6,7 @@ import '../../core/models/note.dart';
 import '../../core/models/season.dart';
 import '../../core/services/api_service.dart';
 import 'package:provider/provider.dart';
+import '../../core/utils/local_storage.dart';
 import '../../presentation/providers/auth_provider.dart';
 
 // Add this model class for activities
@@ -29,43 +30,96 @@ class FarmProvider extends ChangeNotifier {
   // ... existing fields and constructor ...
 
   /// Creates a farm, optionally with a uuid. Returns uuid from backend if present.
-  Future<String?> createFarmWithUuid(Farm farm, {String? uuid}) async {
+  Future<String?> createFarmWithUuid(
+      Farm farm, {
+        String? uuid,
+        String? farmerName,
+      }) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      // Create farm locally first
-      final localFarm = farm.copyWith(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        isSynced: false,
+      debugPrint('🚀 Starting farm creation process...');
+      debugPrint('📍 UUID present: ${uuid != null && uuid.isNotEmpty}');
+      debugPrint('👤 Farmer name: $farmerName');
+
+      // 🔄 Call the NEW API method
+      final result = await _apiService.createFarmWithUuid(
+        farm,
+        uuid: uuid,
+        farmerName: farmerName,
       );
-      _farms.add(localFarm);
-      notifyListeners();
 
-      // Try to sync with backend if online
-      if (uuid != null && uuid.isNotEmpty) {
-        try {
-          final serverFarm = await _apiService.createFarm(farm);
+      debugPrint('📥 Received response from backend');
 
-          // Update local farm with server data
-          final index = _farms.indexWhere((f) => f.id == localFarm.id);
-          if (index != -1) {
-            _farms[index] = serverFarm;
-          }
-        } catch (e) {
-          // If sync fails, keep local farm and mark for later sync
-          debugPrint('Failed to sync farm with server: $e');
+      // Handle the response
+      final returnedUuid = result['uuid'] as String?;
+      final farmData = result['farm'] as Map<String, dynamic>?;
+      final currentSeason = result['current_season'] as Map<String, dynamic>?;
+      final allSeasons = result['all_seasons_summary'] as List<dynamic>?;
+
+      if (farmData != null) {
+        // Create farm from server response
+        final serverFarm = Farm.fromJson(farmData);
+
+        // Replace the temporary local farm with server farm
+        final tempFarmIndex = _farms.indexWhere((f) => f.name == farm.name && !f.isSynced);
+        if (tempFarmIndex != -1) {
+          _farms[tempFarmIndex] = serverFarm;
+          debugPrint('✅ Updated local farm with server data');
+        } else {
+          _farms.add(serverFarm);
+          debugPrint('✅ Added new farm to local list');
+        }
+
+        // Store seasons data if it's the first farm
+        if (allSeasons != null) {
+          debugPrint('💾 Storing all seasons summary locally...');
+          await _storeAllSeasons(allSeasons);
+        }
+
+        // Store current season for this farm
+        if (currentSeason != null) {
+          debugPrint('💾 Storing current season for farm...');
+          await _storeCurrentSeason(serverFarm.id, currentSeason);
         }
       }
 
       _isLoading = false;
       notifyListeners();
+
+      debugPrint('🎉 Farm creation completed successfully');
+      return returnedUuid;
+
     } catch (e) {
+      debugPrint('❌ Farm creation failed: $e');
       _isLoading = false;
       _error = e.toString();
       notifyListeners();
       rethrow;
+    }
+  }
+
+// Add these helper methods to store seasons data
+  Future<void> _storeAllSeasons(List<dynamic> seasons) async {
+    try {
+      final localStorage = await LocalStorage.init();
+      final seasonsData = seasons.cast<Map<String, dynamic>>();
+      await localStorage.setSeasons(seasonsData);
+      debugPrint('✅ Stored ${seasons.length} seasons locally');
+    } catch (e) {
+      debugPrint('❌ Failed to store seasons: $e');
+    }
+  }
+
+  Future<void> _storeCurrentSeason(String farmId, Map<String, dynamic> seasonData) async {
+    try {
+      final localStorage = await LocalStorage.init();
+      await localStorage.setMap('current_season_$farmId', seasonData);
+      debugPrint('✅ Stored current season for farm $farmId');
+    } catch (e) {
+      debugPrint('❌ Failed to store current season: $e');
     }
   }
 
