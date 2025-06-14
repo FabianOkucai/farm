@@ -25,16 +25,16 @@ class Note {
 
   factory Note.fromJson(Map<String, dynamic> json) {
     return Note(
-      id: json['id'],
-      title: json['title'],
-      content: json['content'],
-      farmId: json['farmId'],
-      seasonId: json['seasonId'],
-      userId: json['userId'],
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
-      isDeleted: json['isDeleted'] ?? false,
-      isSynced: json['isSynced'] ?? false,
+      id: json['id'].toString(), // ✅ FIX: Convert int to String
+      title: json['title'] as String,
+      content: json['content'] as String,
+      farmId: json['farmId'].toString(), // ✅ FIX: Convert int to String
+      seasonId: json['seasonId']?.toString(), // ✅ FIX: Convert int to String (nullable)
+      userId: json['userId'].toString(), // ✅ FIX: Convert int to String
+      createdAt: DateTime.parse(json['createdAt'] as String),
+      updatedAt: DateTime.parse(json['updatedAt'] as String),
+      isDeleted: json['isDeleted'] as bool? ?? false,
+      isSynced: json['isSynced'] as bool? ?? false,
     );
   }
 

@@ -45,13 +45,13 @@ class Season {
 
   factory Season.fromJson(Map<String, dynamic> json) {
     return Season(
-      id: json['id'] as String,
-      farmId: json['farm_id'] as String,
+      id: json['id'].toString(), // ✅ FIX: Convert int to String
+      farmId: json['farm_id'].toString(), // ✅ FIX: Convert int to String
       name: json['name'] as String,
       startDate: DateTime.parse(json['start_date'] as String),
       endDate: DateTime.parse(json['end_date'] as String),
       status: SeasonStatus.values.firstWhere(
-        (e) => e.toString() == 'SeasonStatus.${json['status']}',
+            (e) => e.toString() == 'SeasonStatus.${json['status']}',
       ),
       currentMonth: json['current_month'] as int,
       lastUpdated: DateTime.parse(json['last_updated'] as String),

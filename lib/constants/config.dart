@@ -57,12 +57,12 @@ class AppConfig {
   static String _getDefaultApiUrl() {
     switch (environment) {
       case 'production':
-        return 'http://192.168.100.161/mango-backend/public/api/v1';
+        return 'http://192.168.100.19/mango-backend/public/api/v1';
       case 'staging':
         return 'https://staging-api.agapefarm.com/v1';
       case 'development':
       default:
-        return 'http://192.168.100.10/mangoAppBackend/public/api/v1';
+        return 'http://192.168.100.19/mangoAppBackend/public/api/v1';
     }
   }
 

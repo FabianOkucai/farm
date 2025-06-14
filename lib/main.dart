@@ -140,16 +140,68 @@ class MyApp extends StatelessWidget {
     );
   }
 
+// UPDATE: Replace the _getInitialScreen method in MyApp class
   Widget _getInitialScreen(AuthProvider authProvider) {
     if (!authProvider.isInitialized) {
       return const SplashScreen();
     }
 
-    if (authProvider.isAuthenticated) {
-      return const DashboardScreen();
-    }
+    // Check if user has UUID (is authenticated)
+    return FutureBuilder<String?>(
+      future: _checkUserUuid(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SplashScreen();
+        }
 
-    return const SplashScreen();
+        final uuid = snapshot.data;
+
+        if (uuid != null && uuid.isNotEmpty) {
+          // User has UUID - load farms and go to dashboard
+          return FutureBuilder<void>(
+            future: _loadUserFarms(context),
+            builder: (context, farmSnapshot) {
+              if (farmSnapshot.connectionState == ConnectionState.waiting) {
+                return const SplashScreen();
+              }
+
+              return const DashboardScreen();
+            },
+          );
+        }
+
+        return const SplashScreen();
+      },
+    );
+  }
+
+// ADD: Helper method to check UUID
+  Future<String?> _checkUserUuid() async {
+    try {
+      final localStorage = await LocalStorage.init();
+      return localStorage.getUuid();
+    } catch (e) {
+      debugPrint('❌ Error checking UUID: $e');
+      return null;
+    }
+  }
+
+// ADD: Helper method to load user farms
+  Future<void> _loadUserFarms(BuildContext context) async {
+    try {
+      final farmProvider = Provider.of<FarmProvider>(context, listen: false);
+
+      // Only load if farms aren't already loaded
+      if (farmProvider.farms.isEmpty) {
+        debugPrint('🌱 Loading farms on app startup...');
+        await farmProvider.loadFarms();
+      } else {
+        debugPrint('✅ Farms already loaded, skipping...');
+      }
+    } catch (e) {
+      debugPrint('❌ Error loading farms on startup: $e');
+      // Continue to dashboard even if farm loading fails
+    }
   }
 }
 

@@ -146,51 +146,110 @@ class FarmProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  Future<void> loadFarms(String farmerId) async {
+// UPDATE: Replace the existing loadFarms method
+  Future<void> loadFarms() async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      _farms = await _apiService.getFarms(farmerId);
+      debugPrint('🚀 Loading farms for authenticated user...');
+
+      final farmsData = await _apiService.getFarmsWithMetadata();
+
+      _farms = farmsData['farms'] as List<Farm>;
+      final totalFarms = farmsData['total_farms'] as int;
+      final totalSize = farmsData['total_size'] as num;
+
+      debugPrint('✅ Loaded ${_farms.length} farms');
+
+      // Auto-select first farm if available and none is currently selected
+      if (_farms.isNotEmpty && _selectedFarm == null) {
+        _selectedFarm = _farms.first;
+        debugPrint('🎯 Auto-selected first farm: ${_selectedFarm!.name}');
+
+        // Store selected farm locally
+        final localStorage = await LocalStorage.init();
+        await localStorage.setMap('selected_farm', _selectedFarm!.toJson());
+      }
+
+      // Cache farms locally
+      final localStorage = await LocalStorage.init();
+      await localStorage.setFarms(_farms.map((f) => f.toJson()).toList());
+
       _isLoading = false;
       notifyListeners();
     } catch (e) {
+      debugPrint('❌ Failed to load farms: $e');
       _isLoading = false;
-      _error = 'Unable to load farms. Working in offline mode.';
+      _error = 'Unable to load farms. Please check your connection.';
+
+      // Try to load from local cache
+      await _loadFromLocalCache();
       notifyListeners();
     }
   }
 
-  Future<void> selectFarm(String farmId) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
+// ADD: New method to load from local cache
+  Future<void> _loadFromLocalCache() async {
     try {
-      // First try to find the farm in the local list
-      final localFarm = _farms.firstWhere(
-        (farm) => farm.id == farmId,
-        orElse: () => null as Farm,
-      );
+      final localStorage = await LocalStorage.init();
 
-      if (localFarm != null) {
-        _selectedFarm = localFarm;
-      } else {
-        _selectedFarm = await _apiService.getFarm(farmId);
-        // Add to local list if not already present
-        if (!_farms.any((farm) => farm.id == _selectedFarm!.id)) {
-          _farms.add(_selectedFarm!);
-        }
+      // Load farms from cache
+      final cachedFarms = await localStorage.getFarms();
+      if (cachedFarms != null) {
+        _farms = cachedFarms.map((json) => Farm.fromJson(json)).toList();
+        debugPrint('📱 Loaded ${_farms.length} farms from cache');
       }
 
-      _isLoading = false;
+      // Load selected farm from cache
+      final selectedFarmData = localStorage.getMap('selected_farm');
+      if (selectedFarmData != null) {
+        _selectedFarm = Farm.fromJson(selectedFarmData);
+        debugPrint('📱 Restored selected farm: ${_selectedFarm!.name}');
+      } else if (_farms.isNotEmpty && _selectedFarm == null) {
+        _selectedFarm = _farms.first;
+        debugPrint('📱 Auto-selected first cached farm: ${_selectedFarm!.name}');
+      }
+    } catch (e) {
+      debugPrint('❌ Failed to load from cache: $e');
+    }
+  }
+
+// UPDATE: Enhance selectFarm to persist selection
+  Future<void> selectFarm(String farmId) async {
+    try {
+      final farm = _farms.firstWhere((f) => f.id == farmId);
+      _selectedFarm = farm;
+
+      // Persist selected farm
+      final localStorage = await LocalStorage.init();
+      await localStorage.setMap('selected_farm', farm.toJson());
+
+      debugPrint('🎯 Selected farm: ${farm.name}');
       notifyListeners();
     } catch (e) {
-      _isLoading = false;
-      _error = 'Unable to select farm. Working in offline mode.';
+      debugPrint('❌ Failed to select farm: $e');
+      _error = 'Failed to select farm';
       notifyListeners();
     }
+  }
+
+// ADD: Get farm statistics for dashboard
+  Map<String, dynamic> getFarmStatistics() {
+    if (_farms.isEmpty) {
+      return {
+        'total_farms': 0,
+        'total_size': 0.0,
+        'selected_farm': null,
+      };
+    }
+
+    return {
+      'total_farms': _farms.length,
+      'total_size': _farms.fold(0.0, (sum, farm) => sum + farm.size),
+      'selected_farm': _selectedFarm?.name ?? 'No farm selected',
+    };
   }
 
   Future<void> createFarm(Farm farm) async {
@@ -521,30 +580,30 @@ class FarmProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> loadAllFarms(String farmerId) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
-    try {
-      // Try to load from server first
-      try {
-        final farms = await _apiService.getFarms(farmerId);
-        _farms = farms;
-      } catch (e) {
-        debugPrint('Failed to load farms from server: $e');
-        // If server load fails, keep existing local farms
-      }
-
-      _isLoading = false;
-      notifyListeners();
-    } catch (e) {
-      _isLoading = false;
-      _error = e.toString();
-      notifyListeners();
-      rethrow;
-    }
-  }
+  // Future<void> loadAllFarms(String farmerId) async {
+  //   _isLoading = true;
+  //   _error = null;
+  //   notifyListeners();
+  //
+  //   try {
+  //     // Try to load from server first
+  //     try {
+  //       final farms = await _apiService.getFarms(farmerId);
+  //       _farms = farms;
+  //     } catch (e) {
+  //       debugPrint('Failed to load farms from server: $e');
+  //       // If server load fails, keep existing local farms
+  //     }
+  //
+  //     _isLoading = false;
+  //     notifyListeners();
+  //   } catch (e) {
+  //     _isLoading = false;
+  //     _error = e.toString();
+  //     notifyListeners();
+  //     rethrow;
+  //   }
+  // }
 
   Future<void> loadInitialData() async {
     _isLoading = true;

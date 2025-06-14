@@ -32,15 +32,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(() => _loadFarms());
+    _initializeDashboard();
   }
 
-  Future<void> _loadFarms() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+  Future<void> _initializeDashboard() async {
     final farmProvider = Provider.of<FarmProvider>(context, listen: false);
 
-    if (authProvider.user != null) {
-      await farmProvider.loadFarms(authProvider.user!.id);
+    // Load farms if not already loaded
+    if (farmProvider.farms.isEmpty) {
+      debugPrint('🌱 Dashboard loading farms...');
+      await farmProvider.loadFarms();
+    }
+
+    // Load notes for selected farm if available
+    if (farmProvider.selectedFarm != null) {
+      debugPrint('📝 Loading notes for selected farm...');
+      await farmProvider.loadNotes(
+        farmProvider.selectedFarm!.id,
+        farmProvider.selectedFarm!.farmerId,
+      );
     }
   }
 
@@ -53,7 +63,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     switch (index) {
       case 0:
-        // Already on dashboard
+      // Already on dashboard
         break;
       case 1:
         NavigationHelper.navigateToReplacement(context, const SeasonsScreen());
@@ -93,9 +103,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             Consumer<FarmProvider>(
               builder: (context, farmProvider, child) {
+                if (farmProvider.isLoading) {
+                  return const Text(
+                    'Loading farms...',
+                    style: TextStyle(color: Colors.grey, fontSize: 14),
+                  );
+                }
+
+                if (farmProvider.selectedFarm != null) {
+                  return Text(
+                    '${farmProvider.selectedFarm!.name} (${farmProvider.farms.length} farms)',
+                    style: const TextStyle(color: Colors.grey, fontSize: 14),
+                  );
+                }
+
+                if (farmProvider.farms.isEmpty) {
+                  return const Text(
+                    'No farms found',
+                    style: TextStyle(color: Colors.grey, fontSize: 14),
+                  );
+                }
+
                 return Text(
-                  farmProvider.selectedFarm?.name ?? 'No farm selected',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                  '${farmProvider.farms.length} farms available',
+                  style: const TextStyle(color: Colors.grey, fontSize: 14),
                 );
               },
             ),
@@ -104,100 +135,99 @@ class _DashboardScreenState extends State<DashboardScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
       ),
-      body:
-          farmProvider.isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Dashboard Grid
-                    GridView.count(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      crossAxisCount: 2,
-                      mainAxisSpacing: 16,
-                      crossAxisSpacing: 16,
-                      childAspectRatio: 1.1,
-                      children: [
-                        _buildDashboardItem(
-                          title: Strings.myFarms,
-                          icon: AssetPaths.dashboardFarm,
-                          color: const Color(0xFFE0F7E0),
-                          onTap: () {
-                            NavigationHelper.navigateTo(
-                              context,
-                              const SelectFarmScreen(returnToNotes: false),
-                            );
-                          },
-                        ),
-                        _buildDashboardItem(
-                          title: Strings.mySeasons,
-                          icon: AssetPaths.dashboardSeasons,
-                          color: const Color(0xFFA5D6A7),
-                          onTap: () {
-                            NavigationHelper.navigateTo(
-                              context,
-                              const SeasonsScreen(),
-                            );
-                          },
-                        ),
-                        _buildDashboardItem(
-                          title: Strings.mySchedule,
-                          icon: AssetPaths.dashboardSchedule,
-                          color: const Color(0xFFA5D6A7),
-                          onTap: () {
-                            NavigationHelper.navigateTo(
-                              context,
-                              const NotificationsScreen(),
-                            );
-                          },
-                        ),
-                        _buildDashboardItem(
-                          title: Strings.myNotes,
-                          icon: AssetPaths.dashboardNotes,
-                          color: const Color(0xFFE0F7E0),
-                          onTap: () {
-                            NavigationHelper.navigateTo(
-                              context,
-                              const FarmNotesScreen(),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
+      body: farmProvider.isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Dashboard Grid
+            GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 2,
+              mainAxisSpacing: 16,
+              crossAxisSpacing: 16,
+              childAspectRatio: 1.1,
+              children: [
+                _buildDashboardItem(
+                  title: Strings.myFarms,
+                  icon: AssetPaths.dashboardFarm,
+                  color: const Color(0xFFE0F7E0),
+                  onTap: () {
+                    NavigationHelper.navigateTo(
+                      context,
+                      const SelectFarmScreen(returnToNotes: false),
+                    );
+                  },
+                ),
+                _buildDashboardItem(
+                  title: Strings.mySeasons,
+                  icon: AssetPaths.dashboardSeasons,
+                  color: const Color(0xFFA5D6A7),
+                  onTap: () {
+                    NavigationHelper.navigateTo(
+                      context,
+                      const SeasonsScreen(),
+                    );
+                  },
+                ),
+                _buildDashboardItem(
+                  title: Strings.mySchedule,
+                  icon: AssetPaths.dashboardSchedule,
+                  color: const Color(0xFFA5D6A7),
+                  onTap: () {
+                    NavigationHelper.navigateTo(
+                      context,
+                      const NotificationsScreen(),
+                    );
+                  },
+                ),
+                _buildDashboardItem(
+                  title: Strings.myNotes,
+                  icon: AssetPaths.dashboardNotes,
+                  color: const Color(0xFFE0F7E0),
+                  onTap: () {
+                    NavigationHelper.navigateTo(
+                      context,
+                      const FarmNotesScreen(),
+                    );
+                  },
+                ),
+              ],
+            ),
 
-                    const SizedBox(height: 24),
+            const SizedBox(height: 24),
 
-                    // Farm Progress Section
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Text(
-                        Strings.myFarmProgress,
-                        style: AppTextStyles.heading3.copyWith(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Farm Progress Card
-                    _buildFarmProgressCard(),
-
-                    // Guide Section
-                    const SizedBox(height: 24),
-                    _buildSectionHeader(
-                      'Farmer\'s Guide',
-                      'Quick tips and help for managing your farm',
-                      Icons.lightbulb_outline,
-                    ),
-                    const SizedBox(height: 16),
-                    _buildGuideCard(),
-                  ],
+            // Farm Progress Section
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Text(
+                Strings.myFarmProgress,
+                style: AppTextStyles.heading3.copyWith(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
+            ),
+            const SizedBox(height: 16),
+
+            // Farm Progress Card
+            _buildFarmProgressCard(),
+
+            // Guide Section
+            const SizedBox(height: 24),
+            _buildSectionHeader(
+              'Farmer\'s Guide',
+              'Quick tips and help for managing your farm',
+              Icons.lightbulb_outline,
+            ),
+            const SizedBox(height: 16),
+            _buildGuideCard(),
+          ],
+        ),
+      ),
       bottomNavigationBar: CustomNavigationBar(
         currentIndex: _currentIndex,
         onTap: _onNavigationTap,
@@ -251,80 +281,157 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildFarmProgressCard() {
-    return GestureDetector(
-      onTap: () => NavigationHelper.navigateTo(context, const SeasonsScreen()),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(20),
-        margin: const EdgeInsets.symmetric(horizontal: 8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(
-                  'Mango farm',
-                  style: AppTextStyles.heading3.copyWith(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.backgroundGrey,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    '3 acres | 4 farms',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: AppColors.textMedium,
-                      fontSize: 12,
-                    ),
-                  ),
+    return Consumer<FarmProvider>(
+      builder: (context, farmProvider, child) {
+        final selectedFarm = farmProvider.selectedFarm;
+        final stats = farmProvider.getFarmStatistics();
+
+        if (selectedFarm == null) {
+          return _buildNoFarmSelectedCard(stats);
+        }
+
+        return GestureDetector(
+          onTap: () => NavigationHelper.navigateTo(context, const SeasonsScreen()),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            margin: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            const Divider(height: 1),
-            const SizedBox(height: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      selectedFarm.name,
+                      style: AppTextStyles.heading3.copyWith(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.backgroundGrey,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        '${selectedFarm.size} acres | ${stats['total_farms']} farms',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.textMedium,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '${selectedFarm.village}, ${selectedFarm.district}',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textLight,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Divider(height: 1),
+                const SizedBox(height: 16),
 
-            // Progress Timeline
-            _buildTimelineItem(
-              title: '2nd Inspection completed',
-              date: '23rd August - 25th August',
-              isCompleted: true,
-              isLast: false,
+                // Progress Timeline
+                _buildTimelineItem(
+                  title: '2nd Inspection completed',
+                  date: '23rd August - 25th August',
+                  isCompleted: true,
+                  isLast: false,
+                ),
+                _buildTimelineItem(
+                  title: '4th spray season',
+                  date: '23/04 - 25/04',
+                  isCompleted: true,
+                  isLast: false,
+                ),
+                _buildTimelineItem(
+                  title: 'Mulching phase',
+                  date: '23rd August - 25th August',
+                  isCompleted: false,
+                  isLast: true,
+                ),
+              ],
             ),
-            _buildTimelineItem(
-              title: '4th spray season',
-              date: '23/04 - 25/04',
-              isCompleted: true,
-              isLast: false,
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildNoFarmSelectedCard(Map<String, dynamic> stats) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey[300]!, width: 1),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.agriculture_outlined,
+            size: 48,
+            color: Colors.grey[400],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            stats['total_farms'] > 0
+                ? 'Select a farm to view progress'
+                : 'No farms found',
+            style: AppTextStyles.bodyLarge.copyWith(
+              color: AppColors.textMedium,
+              fontWeight: FontWeight.w500,
             ),
-            _buildTimelineItem(
-              title: 'Mulching phase',
-              date: '23rd August - 25th August',
-              isCompleted: false,
-              isLast: true,
+          ),
+          if (stats['total_farms'] > 0) ...[
+            const SizedBox(height: 8),
+            Text(
+              'You have ${stats['total_farms']} farms',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textLight,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () {
+                NavigationHelper.navigateTo(
+                  context,
+                  const SelectFarmScreen(returnToNotes: false),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryGreen,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+              child: const Text('Select Farm'),
             ),
           ],
-        ),
+        ],
       ),
     );
   }
@@ -349,9 +456,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 shape: BoxShape.circle,
                 border: Border.all(
                   color:
-                      isCompleted
-                          ? AppColors.primaryGreen
-                          : AppColors.textLight,
+                  isCompleted
+                      ? AppColors.primaryGreen
+                      : AppColors.textLight,
                   width: 2,
                 ),
               ),
@@ -444,10 +551,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const SizedBox(height: 16),
             Text(
               '• Start by selecting your farm from "My Farms" above\n'
-              '• Track your progress in the Farm Progress section\n'
-              '• Add notes about important observations\n'
-              '• Check the schedule for upcoming activities\n'
-              '• Monitor seasons to optimize your farming',
+                  '• Track your progress in the Farm Progress section\n'
+                  '• Add notes about important observations\n'
+                  '• Check the schedule for upcoming activities\n'
+                  '• Monitor seasons to optimize your farming',
               style: AppTextStyles.bodyMedium.copyWith(
                 color: Colors.grey[700],
                 height: 1.5,

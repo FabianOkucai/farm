@@ -31,20 +31,19 @@ class Farm {
 
   factory Farm.fromJson(Map<String, dynamic> json) {
     return Farm(
-      id: json['id'] as String,
+      id: json['id'].toString(), // ✅ FIX: Convert int to String
       name: json['name'] as String,
       size: (json['size'] as num).toDouble(),
       district: json['district'] as String,
       village: json['village'] as String,
-      farmerId: json['farmer_id'] as String,
+      farmerId: json['farmer_id'].toString(), // ✅ FIX: Convert int to String
       plantingDate: DateTime.parse(json['planting_date'] as String),
       currentSeasonMonth: json['current_season_month'] as int,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
-      lastSyncedAt:
-          json['last_synced_at'] != null
-              ? DateTime.parse(json['last_synced_at'] as String)
-              : null,
+      lastSyncedAt: json['last_synced_at'] != null
+          ? DateTime.parse(json['last_synced_at'] as String)
+          : null,
       isSynced: json['is_synced'] as bool? ?? true,
       isDeleted: json['is_deleted'] as bool? ?? false,
     );

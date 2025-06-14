@@ -294,18 +294,101 @@ class ApiService {
       rethrow;
     }
   }
-
+  // Future<List<Farm>> getFarmsByUuid(String uuid) async {
+  //   try {
+  //     debugPrint('🌾 Loading farms for UUID: ${uuid.substring(0, 8)}...');
+  //
+  //     final response = await _makeRequest(
+  //       'GET',
+  //       '/farms', // Endpoint to get farms by UUID
+  //       queryParams: {'uuid': uuid}, // Pass UUID as query parameter
+  //     );
+  //
+  //     if (response['status'] == 'success') {
+  //       final List<dynamic> farmsData = response['data']['farms'] ?? [];
+  //       final farms = farmsData.map((json) => Farm.fromJson(json)).toList();
+  //
+  //       debugPrint('✅ Loaded ${farms.length} farms for user');
+  //       return farms;
+  //     } else {
+  //       throw Exception(response['message'] ?? 'Failed to load farms');
+  //     }
+  //   } catch (e) {
+  //     debugPrint('❌ Failed to load farms by UUID: $e');
+  //
+  //     // Fall back to local storage
+  //     final localFarms = await _localStorage.getFarms();
+  //     if (localFarms != null) {
+  //       debugPrint('📱 Loaded ${localFarms.length} farms from local storage');
+  //       return localFarms.map((json) => Farm.fromJson(json)).toList();
+  //     }
+  //
+  //     rethrow;
+  //   }
+  // }
   // Farms API
-  Future<List<Farm>> getFarms(String farmerId) async {
+// UPDATE: Replace the existing getFarms method with this
+  Future<List<Farm>> getFarms() async {
     try {
-      final response = await _makeRequest('GET', '/farms/$farmerId');
-      final List<dynamic> farmsData = response['data']['farms'];
-      return farmsData.map((json) => Farm.fromJson(json)).toList();
+      debugPrint('🌐 Loading farms for authenticated user...');
+
+      final response = await _makeRequest('GET', '/farms');
+
+      if (response['status'] == 'success') {
+        final List<dynamic> farmsData = response['data']['farms'];
+        final totalFarms = response['data']['total_farms'];
+        final totalSize = response['data']['total_size'];
+
+        debugPrint('✅ Loaded $totalFarms farms with total size: $totalSize');
+
+        return farmsData.map((json) => Farm.fromJson(json)).toList();
+      } else {
+        throw Exception(response['message'] ?? 'Failed to load farms');
+      }
     } catch (e) {
+      debugPrint('❌ Failed to load farms: $e');
+
       // If online request fails, try to get from local storage
       final farms = await _localStorage.getFarms();
       if (farms != null) {
+        debugPrint('📱 Using cached farms from local storage');
         return farms.map((json) => Farm.fromJson(json)).toList();
+      }
+      rethrow;
+    }
+  }
+
+// ADD: New method to get farms with metadata
+  Future<Map<String, dynamic>> getFarmsWithMetadata() async {
+    try {
+      debugPrint('🌐 Loading farms with metadata...');
+
+      final response = await _makeRequest('GET', '/farms');
+
+      if (response['status'] == 'success') {
+        final data = response['data'];
+        final List<dynamic> farmsData = data['farms'];
+
+        return {
+          'farms': farmsData.map((json) => Farm.fromJson(json)).toList(),
+          'total_farms': data['total_farms'],
+          'total_size': data['total_size'],
+        };
+      } else {
+        throw Exception(response['message'] ?? 'Failed to load farms');
+      }
+    } catch (e) {
+      debugPrint('❌ Failed to load farms with metadata: $e');
+
+      // Fallback to local storage
+      final farms = await _localStorage.getFarms();
+      if (farms != null) {
+        final farmsList = farms.map((json) => Farm.fromJson(json)).toList();
+        return {
+          'farms': farmsList,
+          'total_farms': farmsList.length,
+          'total_size': farmsList.fold(0.0, (sum, farm) => sum + farm.size),
+        };
       }
       rethrow;
     }
