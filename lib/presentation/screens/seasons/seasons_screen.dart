@@ -3,7 +3,8 @@ import 'package:provider/provider.dart';
 import '../../../constants/app_colors.dart';
 import '../../../constants/app_text_styles.dart';
 import '../../../constants/strings.dart';
-import 'add_season_screen.dart';
+import '../../../core/data/seasons_data.dart';
+import '../../../core/models/seasonal_month.dart';
 import '../../../core/utils/navigation_helper.dart';
 import '../../providers/farm_provider.dart';
 import '../../widgets/navigation_bar.dart';
@@ -11,6 +12,7 @@ import '../dashboard/dashboard_screen.dart';
 import '../farm_notes/farm_notes_screen.dart';
 import '../profile/profile_settings_screen.dart';
 import '../contact/contact_screen.dart';
+import 'season_detail_screen.dart';
 
 class SeasonsScreen extends StatefulWidget {
   const SeasonsScreen({Key? key}) : super(key: key);
@@ -19,22 +21,8 @@ class SeasonsScreen extends StatefulWidget {
   State<SeasonsScreen> createState() => _SeasonsScreenState();
 }
 
-class _SeasonsScreenState extends State<SeasonsScreen>
-    with SingleTickerProviderStateMixin {
+class _SeasonsScreenState extends State<SeasonsScreen> {
   int _currentIndex = 1;
-  late TabController _tabController;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
 
   void _onNavigationTap(int index) {
     if (index == _currentIndex) return;
@@ -51,7 +39,7 @@ class _SeasonsScreenState extends State<SeasonsScreen>
         );
         break;
       case 1:
-        // Already on seasons
+      // Already on seasons
         break;
       case 2:
         NavigationHelper.navigateToReplacement(
@@ -77,6 +65,7 @@ class _SeasonsScreenState extends State<SeasonsScreen>
       body: SafeArea(
         child: Column(
           children: [
+            // Hero Header with Mango Background
             Stack(
               children: [
                 Container(
@@ -105,11 +94,12 @@ class _SeasonsScreenState extends State<SeasonsScreen>
                 Positioned(
                   bottom: 20,
                   left: 20,
+                  right: 20,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        Strings.seasons,
+                        'Mango Growing Guide',
                         style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -126,9 +116,11 @@ class _SeasonsScreenState extends State<SeasonsScreen>
                           color: AppColors.primaryGreen.withOpacity(0.9),
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: const Text(
-                          'Active Season',
-                          style: TextStyle(
+                        child: Text(
+                          farmProvider.selectedFarm != null
+                              ? 'Current Farm: ${farmProvider.selectedFarm!.name}'
+                              : '12 Month Guide',
+                          style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w600,
                             fontSize: 14,
@@ -140,108 +132,57 @@ class _SeasonsScreenState extends State<SeasonsScreen>
                 ),
               ],
             ),
-            TabBar(
-              controller: _tabController,
-              labelColor: AppColors.primaryGreen,
-              unselectedLabelColor: AppColors.textMedium,
-              indicatorColor: AppColors.primaryGreen,
-              indicatorWeight: 3,
-              labelStyle: const TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
+
+            // Info Section
+            Container(
+              padding: const EdgeInsets.all(16),
+              margin: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.primaryGreen.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppColors.primaryGreen.withOpacity(0.2),
+                ),
               ),
-              unselectedLabelStyle: const TextStyle(
-                fontWeight: FontWeight.w500,
-                fontSize: 14,
-              ),
-              tabs: const [
-                Tab(text: Strings.cultivationTips),
-                Tab(text: Strings.fertilizers),
-                Tab(text: Strings.diseases),
-              ],
-            ),
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
+              child: Row(
                 children: [
-                  // Cultivation Tips Tab
-                  SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildTipCard(
-                          'Month 1',
-                          'Soil Preparation & Planting',
-                          'Begin by preparing the soil with organic matter, ensure soil pH is between 5.5 and 7.5, and plant the mango saplings with proper spacing to allow for growth and air circulation.',
-                        ),
-                        const SizedBox(height: 16),
-                        _buildTipCard(
-                          'Month 3',
-                          'Watering & Mulching',
-                          'Water young trees regularly but avoid overwatering. Apply mulch around the base of trees to conserve moisture, suppress weeds, and provide nutrients as it decomposes.',
-                        ),
-                        const SizedBox(height: 16),
-                        _buildTipCard(
-                          'Month 6',
-                          'Pruning & Training',
-                          'Prune to remove dead or diseased branches and to shape the tree for optimal sunlight exposure and air circulation. Train young trees to develop a strong framework.',
-                        ),
-                      ],
-                    ),
+                  Icon(
+                    Icons.info_outline,
+                    color: AppColors.primaryGreen,
+                    size: 20,
                   ),
-
-                  // Fertilizers Tab
-                  SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildFertilizerCard(
-                          'Nitrogen-rich Fertilizer',
-                          'Apply during vegetative growth phase to promote leaf and stem development.',
-                          '10-5-5',
-                        ),
-                        const SizedBox(height: 16),
-                        _buildFertilizerCard(
-                          'Phosphorus-rich Fertilizer',
-                          'Apply before flowering to encourage bloom and fruit set.',
-                          '5-10-5',
-                        ),
-                        const SizedBox(height: 16),
-                        _buildFertilizerCard(
-                          'Potassium-rich Fertilizer',
-                          'Apply during fruit development to improve fruit quality and yield.',
-                          '5-5-10',
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Diseases Tab
-                  SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildDiseaseCard(
-                          'Anthracnose',
-                          'Fungal disease causing black spots on leaves, flowers, and fruits. Control with fungicides and proper spacing for air circulation.',
-                        ),
-                        const SizedBox(height: 16),
-                        _buildDiseaseCard(
-                          'Powdery Mildew',
-                          'White powdery growth on leaves and young shoots. Control with sulfur-based fungicides and avoid overhead irrigation.',
-                        ),
-                        const SizedBox(height: 16),
-                        _buildDiseaseCard(
-                          'Mango Malformation',
-                          'Causes abnormal growth of vegetative and floral parts. Control by pruning affected parts and applying appropriate fungicides.',
-                        ),
-                      ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Tap any month below to see detailed farming instructions and activities',
+                      style: TextStyle(
+                        color: AppColors.primaryGreen,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
+                      ),
                     ),
                   ),
                 ],
+              ),
+            ),
+
+            // Months Grid
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: GridView.builder(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    childAspectRatio: 0.85,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                  ),
+                  itemCount: SeasonsData.totalSeasons,
+                  itemBuilder: (context, index) {
+                    final season = SeasonsData.seasons[index];
+                    return _buildSeasonCard(season);
+                  },
+                ),
               ),
             ),
           ],
@@ -261,153 +202,117 @@ class _SeasonsScreenState extends State<SeasonsScreen>
     );
   }
 
-  Widget _buildTipCard(String month, String title, String description) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+  Widget _buildSeasonCard(SeasonalMonth season) {
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppColors.primaryLightGreen.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              month,
-              style: AppTextStyles.bodySmall.copyWith(
-                color: AppColors.primaryGreen,
-                fontWeight: FontWeight.w600,
-                fontSize: 12,
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            title,
-            style: AppTextStyles.bodyLarge.copyWith(
-              fontWeight: FontWeight.w600,
-              fontSize: 16,
+      child: InkWell(
+        onTap: () {
+          NavigationHelper.navigateTo(
+            context,
+            SeasonDetailScreen(monthNumber: season.month),
+          );
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.white,
+                AppColors.primaryGreen.withOpacity(0.02),
+              ],
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            description,
-            style: AppTextStyles.bodyMedium.copyWith(
-              color: AppColors.textMedium,
-              fontSize: 14,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFertilizerCard(String name, String description, String ratio) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Month Header
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryGreen,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      'Month ${season.month}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    size: 14,
+                    color: AppColors.primaryGreen,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // Title
+              Text(
+                season.title,
+                style: AppTextStyles.bodyLarge.copyWith(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  height: 1.2,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 8),
+
+              // Truncated Description
               Expanded(
                 child: Text(
-                  name,
-                  style: AppTextStyles.bodyLarge.copyWith(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
+                  season.truncatedInstructions,
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: Colors.grey[600],
+                    fontSize: 13,
+                    height: 1.3,
                   ),
+                  maxLines: 4,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              const SizedBox(height: 8),
+
+              // Activities Count
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
+                  horizontal: 8,
+                  vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  color: AppColors.primaryLightGreen.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
+                  color: AppColors.primaryLightGreen.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  ratio,
-                  style: AppTextStyles.bodySmall.copyWith(
+                  '${season.activities.length} activities',
+                  style: TextStyle(
                     color: AppColors.primaryGreen,
+                    fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    fontSize: 12,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            description,
-            style: AppTextStyles.bodyMedium.copyWith(
-              color: AppColors.textMedium,
-              fontSize: 14,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDiseaseCard(String name, String description) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            name,
-            style: AppTextStyles.bodyLarge.copyWith(
-              fontWeight: FontWeight.w600,
-              fontSize: 16,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            description,
-            style: AppTextStyles.bodyMedium.copyWith(
-              color: AppColors.textMedium,
-              fontSize: 14,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
