@@ -1,3 +1,5 @@
+// lib/core/services/api_service.dart - Complete Updated Version
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -11,166 +13,6 @@ import '../models/season_data.dart';
 import '../../constants/config.dart';
 
 class ApiService {
-  /// Create a farm with or without uuid. Returns {'farm': ..., 'uuid': ...}
-// Complete createFarmWithUuid method - replace the entire existing method with this
-  Future<Map<String, dynamic>> createFarmWithUuid(
-      Farm farm, {
-        String? uuid,
-        String? farmerName,
-      }) async {
-    try {
-      if (_isOffline) {
-        return {
-          'farm': _createMockFarm(farm),
-          'uuid': uuid ?? 'mock_uuid_${DateTime.now().millisecondsSinceEpoch}',
-          'current_season': _createMockCurrentSeason(),
-          'all_seasons_summary': uuid == null ? _createMockAllSeasons() : null,
-        };
-      }
-
-      // 🔧 BUILD PROPER REQUEST PAYLOAD
-      Map<String, dynamic> requestBody;
-
-      if (uuid == null || uuid.isEmpty) {
-        // 🆕 FIRST FARM - Laravel expects farmer + farm data
-        debugPrint('🆕 Building first farm payload with farmer data');
-
-        requestBody = {
-          // Farmer information (required for first farm)
-          'farmer_name': farmerName ?? 'Unknown Farmer',
-
-          // Farm information with correct field names
-          'farm_name': farm.name,                    // ✅ farm.name → farm_name
-          'farm_size': farm.size,                    // ✅ farm.size → farm_size
-          'farm_district': farm.district,            // ✅ farm.district → farm_district
-          'farm_village': farm.village,              // ✅ farm.village → farm_village
-          'planting_date': _formatDateForLaravel(farm.plantingDate), // ✅ ISO → YYYY-MM-DD
-        };
-
-        debugPrint('📤 First farm payload: ${requestBody.keys.join(', ')}');
-
-      } else {
-        // 🔄 SUBSEQUENT FARM - Laravel expects only farm data
-        debugPrint('🔄 Building subsequent farm payload (farm data only)');
-
-        requestBody = {
-          // Only farm information (no farmer data needed)
-          'farm_name': farm.name,                    // ✅ Correct field name
-          'farm_size': farm.size,                    // ✅ Correct field name
-          'farm_district': farm.district,            // ✅ Correct field name
-          'farm_village': farm.village,              // ✅ Correct field name
-          'planting_date': _formatDateForLaravel(farm.plantingDate), // ✅ Correct format
-        };
-
-        debugPrint('📤 Subsequent farm payload: ${requestBody.keys.join(', ')}');
-      }
-
-      // 🚫 EXCLUDED FIELDS (that farm.toJson() would include but Laravel doesn't want):
-      // - id (backend generates this)
-      // - farmer_id (not used in this format)
-      // - current_season_month (backend calculates this)
-      // - created_at, updated_at (backend sets these)
-      // - last_synced_at, is_synced, is_deleted (frontend metadata)
-
-      debugPrint('📡 Sending farm creation request to: POST /farms');
-      debugPrint('📋 Payload size: ${requestBody.length} fields');
-
-      final response = await _makeRequest(
-        'POST',
-        '/farms',
-        body: requestBody,
-      );
-
-      if (response['status'] == 'success') {
-        final data = response['data'];
-        debugPrint('✅ Backend accepted request successfully');
-
-        // Handle different response structures
-        Map<String, dynamic> result = {};
-
-        // Extract farm data
-        if (data['farm'] != null) {
-          result['farm'] = data['farm'];
-          debugPrint('✅ Farm data received: ${data['farm']['id']}');
-        }
-
-        // Extract UUID (for first farm only)
-        if (data['farmer_uuid'] != null) {
-          result['uuid'] = data['farmer_uuid'];
-          debugPrint('🔑 New farmer UUID: ${data['farmer_uuid']}');
-        } else if (uuid != null) {
-          result['uuid'] = uuid;
-          debugPrint('🔑 Using existing UUID: ${uuid.substring(0, 8)}...');
-        }
-
-        // Extract current season
-        if (data['current_season'] != null) {
-          result['current_season'] = data['current_season'];
-          debugPrint('🌱 Current season: Month ${data['current_season']['month']}');
-        }
-
-        // Extract all seasons summary (first farm only)
-        if (data['all_seasons_summary'] != null) {
-          result['all_seasons_summary'] = data['all_seasons_summary'];
-          debugPrint('📅 Seasons summary: ${data['all_seasons_summary'].length} seasons');
-        }
-
-        return result;
-      } else {
-        throw Exception(response['message'] ?? 'Failed to create farm');
-      }
-    } catch (e) {
-      debugPrint('❌ Farm creation failed: $e');
-      _isOffline = true;
-
-      // Return mock data as fallback
-      return {
-        'farm': _createMockFarm(farm),
-        'uuid': uuid ?? 'mock_uuid_${DateTime.now().millisecondsSinceEpoch}',
-        'current_season': _createMockCurrentSeason(),
-        'all_seasons_summary': uuid == null ? _createMockAllSeasons() : null,
-      };
-    }
-  }
-
-// 🔧 ADD NEW HELPER METHOD for date formatting
-  String _formatDateForLaravel(DateTime date) {
-    // Convert from: 2023-03-15T10:30:00.000Z
-    // Convert to:   2023-03-15
-    return '${date.year.toString().padLeft(4, '0')}-'
-        '${date.month.toString().padLeft(2, '0')}-'
-        '${date.day.toString().padLeft(2, '0')}';
-  }
-
-// Helper method to create mock current season
-  Map<String, dynamic> _createMockCurrentSeason() {
-    return {
-      'month': 1,
-      'title': 'Land Preparation',
-      'short_description': 'Prepare the land for mango planting',
-      'full_instructions': 'Clear the land, test soil pH, and prepare planting holes...',
-      'activities': [
-        {
-          'title': 'Soil Testing',
-          'description': 'Test soil pH and nutrient levels'
-        },
-        {
-          'title': 'Land Clearing',
-          'description': 'Clear weeds and prepare the field'
-        }
-      ]
-    };
-  }
-
-// Helper method to create mock all seasons
-  List<Map<String, dynamic>> _createMockAllSeasons() {
-    return List.generate(12, (index) => {
-      'month': index + 1,
-      'title': 'Month ${index + 1} Activities',
-      'short_description': 'Important activities for month ${index + 1}',
-    });
-  }
-
   final String baseUrl;
   final http.Client _httpClient;
   final LocalStorage _localStorage;
@@ -195,7 +37,6 @@ class ApiService {
       _isOffline = true;
     }
   }
-
 
   Future<Map<String, String>> _getHeaders() async {
     final headers = {
@@ -295,39 +136,162 @@ class ApiService {
     }
   }
 
-  // Farms API
-// UPDATE: Replace the existing getFarms method with this
-  Future<List<Farm>> getFarms() async {
-    try {
-      debugPrint('🌐 Loading farms for authenticated user...');
+  // ============================================================================
+  // FARM MANAGEMENT API
+  // ============================================================================
 
-      final response = await _makeRequest('GET', '/farms');
+  /// Create a farm with or without uuid. Returns {'farm': ..., 'uuid': ...}
+  Future<Map<String, dynamic>> createFarmWithUuid(
+      Farm farm, {
+        String? uuid,
+        String? farmerName,
+      }) async {
+    try {
+      if (_isOffline) {
+        return {
+          'farm': _createMockFarm(farm),
+          'uuid': uuid ?? 'mock_uuid_${DateTime.now().millisecondsSinceEpoch}',
+          'current_season': _createMockCurrentSeason(),
+          'all_seasons_summary': uuid == null ? _createMockAllSeasons() : null,
+        };
+      }
+
+      // Build proper request payload
+      Map<String, dynamic> requestBody;
+
+      if (uuid == null || uuid.isEmpty) {
+        // First farm - Laravel expects farmer + farm data
+        debugPrint('🆕 Building first farm payload with farmer data');
+
+        requestBody = {
+          // Farmer information (required for first farm)
+          'farmer_name': farmerName ?? 'Unknown Farmer',
+
+          // Farm information with correct field names
+          'farm_name': farm.name,
+          'farm_size': farm.size,
+          'farm_district': farm.district,
+          'farm_village': farm.village,
+          'planting_date': _formatDateForLaravel(farm.plantingDate),
+        };
+
+        debugPrint('📤 First farm payload: ${requestBody.keys.join(', ')}');
+      } else {
+        // Subsequent farm - Laravel expects only farm data
+        debugPrint('🔄 Building subsequent farm payload (farm data only)');
+
+        requestBody = {
+          // Only farm information (no farmer data needed)
+          'farm_name': farm.name,
+          'farm_size': farm.size,
+          'farm_district': farm.district,
+          'farm_village': farm.village,
+          'planting_date': _formatDateForLaravel(farm.plantingDate),
+        };
+
+        debugPrint('📤 Subsequent farm payload: ${requestBody.keys.join(', ')}');
+      }
+
+      debugPrint('📡 Sending farm creation request to: POST /farms');
+      debugPrint('📋 Payload size: ${requestBody.length} fields');
+
+      final response = await _makeRequest(
+        'POST',
+        '/farms',
+        body: requestBody,
+      );
 
       if (response['status'] == 'success') {
-        final List<dynamic> farmsData = response['data']['farms'];
-        final totalFarms = response['data']['total_farms'];
-        final totalSize = response['data']['total_size'];
+        final data = response['data'];
+        debugPrint('✅ Backend accepted request successfully');
 
-        debugPrint('✅ Loaded $totalFarms farms with total size: $totalSize');
+        // Handle different response structures
+        Map<String, dynamic> result = {};
 
-        return farmsData.map((json) => Farm.fromJson(json)).toList();
+        // Extract farm data
+        if (data['farm'] != null) {
+          result['farm'] = data['farm'];
+          debugPrint('✅ Farm data received: ${data['farm']['id']}');
+        }
+
+        // Extract UUID (for first farm only)
+        if (data['farmer_uuid'] != null) {
+          result['uuid'] = data['farmer_uuid'];
+          debugPrint('🔑 New farmer UUID: ${data['farmer_uuid']}');
+        } else if (uuid != null) {
+          result['uuid'] = uuid;
+          debugPrint('🔑 Using existing UUID: ${uuid.substring(0, 8)}...');
+        }
+
+        // Extract current season
+        if (data['current_season'] != null) {
+          result['current_season'] = data['current_season'];
+          debugPrint('🌱 Current season: Month ${data['current_season']['month']}');
+        }
+
+        // Extract all seasons summary (first farm only)
+        if (data['all_seasons_summary'] != null) {
+          result['all_seasons_summary'] = data['all_seasons_summary'];
+          debugPrint('📅 Seasons summary: ${data['all_seasons_summary'].length} seasons');
+        }
+
+        return result;
       } else {
-        throw Exception(response['message'] ?? 'Failed to load farms');
+        throw Exception(response['message'] ?? 'Failed to create farm');
       }
     } catch (e) {
-      debugPrint('❌ Failed to load farms: $e');
+      debugPrint('❌ Farm creation failed: $e');
+      _isOffline = true;
 
-      // If online request fails, try to get from local storage
-      final farms = await _localStorage.getFarms();
-      if (farms != null) {
-        debugPrint('📱 Using cached farms from local storage');
-        return farms.map((json) => Farm.fromJson(json)).toList();
-      }
-      rethrow;
+      // Return mock data as fallback
+      return {
+        'farm': _createMockFarm(farm),
+        'uuid': uuid ?? 'mock_uuid_${DateTime.now().millisecondsSinceEpoch}',
+        'current_season': _createMockCurrentSeason(),
+        'all_seasons_summary': uuid == null ? _createMockAllSeasons() : null,
+      };
     }
   }
 
-// ADD: New method to get farms with metadata
+  // Helper method for date formatting
+  String _formatDateForLaravel(DateTime date) {
+    // Convert from: 2023-03-15T10:30:00.000Z
+    // Convert to:   2023-03-15
+    return '${date.year.toString().padLeft(4, '0')}-'
+        '${date.month.toString().padLeft(2, '0')}-'
+        '${date.day.toString().padLeft(2, '0')}';
+  }
+
+  // Helper method to create mock current season
+  Map<String, dynamic> _createMockCurrentSeason() {
+    return {
+      'month': 1,
+      'title': 'Land Preparation',
+      'short_description': 'Prepare the land for mango planting',
+      'full_instructions': 'Clear the land, test soil pH, and prepare planting holes...',
+      'activities': [
+        {
+          'title': 'Soil Testing',
+          'description': 'Test soil pH and nutrient levels'
+        },
+        {
+          'title': 'Land Clearing',
+          'description': 'Clear weeds and prepare the field'
+        }
+      ]
+    };
+  }
+
+  // Helper method to create mock all seasons
+  List<Map<String, dynamic>> _createMockAllSeasons() {
+    return List.generate(12, (index) => {
+      'month': index + 1,
+      'title': 'Month ${index + 1} Activities',
+      'short_description': 'Important activities for month ${index + 1}',
+    });
+  }
+
+  // Load farms with metadata
   Future<Map<String, dynamic>> getFarmsWithMetadata() async {
     try {
       debugPrint('🌐 Loading farms with metadata...');
@@ -363,6 +327,36 @@ class ApiService {
     }
   }
 
+  Future<List<Farm>> getFarms() async {
+    try {
+      debugPrint('🌐 Loading farms for authenticated user...');
+
+      final response = await _makeRequest('GET', '/farms');
+
+      if (response['status'] == 'success') {
+        final List<dynamic> farmsData = response['data']['farms'];
+        final totalFarms = response['data']['total_farms'];
+        final totalSize = response['data']['total_size'];
+
+        debugPrint('✅ Loaded $totalFarms farms with total size: $totalSize');
+
+        return farmsData.map((json) => Farm.fromJson(json)).toList();
+      } else {
+        throw Exception(response['message'] ?? 'Failed to load farms');
+      }
+    } catch (e) {
+      debugPrint('❌ Failed to load farms: $e');
+
+      // If online request fails, try to get from local storage
+      final farms = await _localStorage.getFarms();
+      if (farms != null) {
+        debugPrint('📱 Using cached farms from local storage');
+        return farms.map((json) => Farm.fromJson(json)).toList();
+      }
+      rethrow;
+    }
+  }
+
   Future<Farm> getFarm(String farmId) async {
     try {
       final response = await _makeRequest('GET', '/farms/$farmId');
@@ -373,25 +367,6 @@ class ApiService {
       if (farm != null) {
         return Farm.fromJson(farm);
       }
-      rethrow;
-    }
-  }
-
-  /// Get farm details with current season information
-  Future<Map<String, dynamic>> getFarmWithCurrentSeason(String farmId) async {
-    try {
-      debugPrint('🌐 Loading farm with current season: $farmId');
-
-      final response = await _makeRequest('GET', '/farms/$farmId');
-
-      if (response['status'] == 'success') {
-        debugPrint('✅ Farm and season data loaded successfully');
-        return response;
-      } else {
-        throw Exception(response['message'] ?? 'Failed to load farm data');
-      }
-    } catch (e) {
-      debugPrint('❌ Failed to load farm with season: $e');
       rethrow;
     }
   }
@@ -431,7 +406,112 @@ class ApiService {
     await _makeRequest('DELETE', '/farms/$farmId');
   }
 
-  // Seasons API
+  // ============================================================================
+  // NOTES API - UPDATED FOR OFFLINE-FIRST APPROACH
+  // ============================================================================
+
+  /// Sync notes to backend (bulk sync)
+  Future<Map<String, dynamic>> syncNotes(List<Note> unsyncedNotes) async {
+    try {
+      debugPrint('🔄 Syncing ${unsyncedNotes.length} notes to backend...');
+
+      if (unsyncedNotes.isEmpty) {
+        return {'synced_count': 0, 'failed_count': 0, 'results': []};
+      }
+
+      // Prepare notes for sync
+      final notesToSync = unsyncedNotes.map((note) => note.toSyncJson()).toList();
+
+      debugPrint('📤 Sending notes sync request: POST /notes/sync');
+      debugPrint('📋 Notes to sync: ${notesToSync.length}');
+
+      final response = await _makeRequest(
+        'POST',
+        '/notes/sync',
+        body: {'notes': notesToSync},
+      );
+
+      if (response['status'] == 'success') {
+        final results = response['data']['results'] as List<dynamic>;
+        final syncedCount = response['data']['synced_count'] as int;
+        final failedCount = response['data']['failed_count'] as int;
+
+        debugPrint('✅ Notes sync completed: $syncedCount synced, $failedCount failed');
+
+        return {
+          'synced_count': syncedCount,
+          'failed_count': failedCount,
+          'results': results,
+        };
+      } else {
+        throw Exception(response['message'] ?? 'Failed to sync notes');
+      }
+    } catch (e) {
+      debugPrint('❌ Failed to sync notes: $e');
+
+      // Return failure result for all notes
+      final results = unsyncedNotes.map((note) => {
+        'local_id': note.id,
+        'success': false,
+        'error': e.toString(),
+      }).toList();
+
+      return {
+        'synced_count': 0,
+        'failed_count': unsyncedNotes.length,
+        'results': results,
+      };
+    }
+  }
+
+  /// Get all farmer notes from backend
+  Future<List<Note>> getAllFarmerNotes() async {
+    try {
+      debugPrint('📚 Loading all farmer notes...');
+
+      final response = await _makeRequest('GET', '/notes');
+
+      if (response['status'] == 'success') {
+        final List<dynamic> notesData = response['data']['notes'];
+        final notes = notesData.map((json) => Note.fromJson(json)).toList();
+
+        debugPrint('✅ Loaded ${notes.length} notes from backend');
+        return notes;
+      } else {
+        throw Exception(response['message'] ?? 'Failed to load notes');
+      }
+    } catch (e) {
+      debugPrint('❌ Failed to load farmer notes: $e');
+      rethrow;
+    }
+  }
+
+  /// Download and sync all notes from backend to local storage
+  Future<void> downloadAndSyncNotes() async {
+    try {
+      debugPrint('📥 Downloading notes from backend...');
+
+      final backendNotes = await getAllFarmerNotes();
+
+      // Store backend notes locally (these override local ones)
+      for (final note in backendNotes) {
+        await _localStorage.storeNote(note.copyWith(
+          syncStatus: NoteSyncStatus.synced,
+          syncedAt: DateTime.now(),
+        ));
+      }
+
+      debugPrint('✅ Downloaded and stored ${backendNotes.length} notes locally');
+    } catch (e) {
+      debugPrint('❌ Failed to download notes: $e');
+      rethrow;
+    }
+  }
+
+  // ============================================================================
+  // SEASONS API
+  // ============================================================================
+
   Future<List<Season>> getSeasons(String farmId) async {
     try {
       final response = await _makeRequest('GET', '/farms/$farmId/seasons');
@@ -491,53 +571,27 @@ class ApiService {
     await _makeRequest('DELETE', '/seasons/$seasonId');
   }
 
-  // Notes API
-  Future<List<Note>> getFarmerNotes(String farmerId) async {
+  // ============================================================================
+  // SEASONAL DATA API
+  // ============================================================================
+
+  Future<Map<String, dynamic>?> getCurrentSeasonForFarm(String farmId) async {
     try {
-      final response = await _makeRequest('GET', '/notes/$farmerId');
-      final List<dynamic> notesData = response['data']['notes'];
-      return notesData.map((json) => Note.fromJson(json)).toList();
-    } catch (e) {
-      // If online request fails, try to get from local storage
-      final notes = await _localStorage.getNotes();
-      if (notes != null) {
-        return notes.map((json) => Note.fromJson(json)).toList();
+      debugPrint('🌱 Getting current season for farm: $farmId');
+
+      final response = await _makeRequest('GET', '/farms/$farmId/current-season');
+
+      if (response['status'] == 'success') {
+        return response['data'];
+      } else {
+        throw Exception(response['message'] ?? 'Failed to get current season');
       }
-      rethrow;
-    }
-  }
-
-  Future<Note> createNote(Note note) async {
-    try {
-      final response = await _makeRequest(
-        'POST',
-        '/notes',
-        body: note.toJson(),
-      );
-      return Note.fromJson(response['data']);
     } catch (e) {
-      rethrow;
+      debugPrint('❌ Failed to get current season for farm: $e');
+      return null;
     }
   }
 
-  Future<Note> updateNote(Note note) async {
-    try {
-      final response = await _makeRequest(
-        'PUT',
-        '/notes/${note.id}',
-        body: note.toJson(),
-      );
-      return Note.fromJson(response['data']);
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  Future<void> deleteNote(String noteId) async {
-    await _makeRequest('DELETE', '/notes/$noteId');
-  }
-
-  // Seasonal Data API
   Future<SeasonData> getSeasonInfo(int monthNumber) async {
     try {
       final response = await _makeRequest('GET', '/seasons/$monthNumber');
@@ -557,19 +611,9 @@ class ApiService {
     }
   }
 
-  // Sync Endpoints
-  Future<DateTime> syncNotes(List<Note> notes) async {
-    try {
-      final response = await _makeRequest(
-        'POST',
-        '/sync/notes',
-        body: {'notes': notes.map((n) => n.toJson()).toList()},
-      );
-      return DateTime.parse(response['sync_timestamp']);
-    } catch (e) {
-      rethrow;
-    }
-  }
+  // ============================================================================
+  // SYNC ENDPOINTS
+  // ============================================================================
 
   Future<DateTime> syncFarms(List<Map<String, dynamic>> farms) async {
     try {
@@ -598,7 +642,38 @@ class ApiService {
     }
   }
 
-  // Mock data helpers
+  // ============================================================================
+  // DEPRECATED METHODS (for backward compatibility)
+  // ============================================================================
+
+  @Deprecated('Use syncNotes and local storage instead')
+  Future<List<Note>> getFarmerNotes(String farmerId) async {
+    // Keep for backward compatibility but redirect to new method
+    return await getAllFarmerNotes();
+  }
+
+  @Deprecated('Use local storage and sync instead')
+  Future<Note> createNote(Note note) async {
+    // This should not be used anymore - notes are created locally
+    throw UnsupportedError('Use local storage for note creation');
+  }
+
+  @Deprecated('Use local storage and sync instead')
+  Future<Note> updateNote(Note note) async {
+    // This should not be used anymore - notes are updated locally
+    throw UnsupportedError('Use local storage for note updates');
+  }
+
+  @Deprecated('Use local storage and sync instead')
+  Future<void> deleteNote(String noteId) async {
+    // This should not be used anymore - notes are deleted locally
+    throw UnsupportedError('Use local storage for note deletion');
+  }
+
+  // ============================================================================
+  // MOCK DATA HELPERS
+  // ============================================================================
+
   List<Farm> _getMockFarms(String farmerId) {
     return [
       Farm(

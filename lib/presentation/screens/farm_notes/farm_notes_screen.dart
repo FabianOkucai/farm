@@ -1,3 +1,5 @@
+// lib/presentation/screens/farm_notes/farm_notes_screen.dart - Complete Updated Version
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -59,7 +61,7 @@ class _FarmNotesScreenState extends State<FarmNotesScreen> {
         NavigationHelper.navigateToReplacement(context, const SeasonsScreen());
         break;
       case 2:
-        // Already on notes
+      // Already on notes
         break;
       case 3:
         NavigationHelper.navigateToReplacement(
@@ -70,10 +72,58 @@ class _FarmNotesScreenState extends State<FarmNotesScreen> {
     }
   }
 
+  Future<void> _syncNotes() async {
+    final farmProvider = Provider.of<FarmProvider>(context, listen: false);
+    await farmProvider.syncNotes();
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Notes sync completed'),
+          backgroundColor: AppColors.primaryGreen,
+        ),
+      );
+    }
+  }
+
+  Future<void> _deleteNote(Note note) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Note'),
+        content: Text('Are you sure you want to delete "${note.title}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      final farmProvider = Provider.of<FarmProvider>(context, listen: false);
+      await farmProvider.deleteNoteOffline(note.id);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Deleted "${note.title}"'),
+            backgroundColor: AppColors.primaryGreen,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final farmProvider = Provider.of<FarmProvider>(context);
-    final size = MediaQuery.of(context).size;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -88,6 +138,77 @@ class _FarmNotesScreenState extends State<FarmNotesScreen> {
         ),
         backgroundColor: Colors.white,
         elevation: 0,
+        actions: [
+          // Sync button with status indicator
+          Consumer<FarmProvider>(
+            builder: (context, provider, child) {
+              final syncStatus = provider.getNoteSyncStatus();
+              final pendingCount = syncStatus['pending'] ?? 0;
+              final failedCount = syncStatus['failed'] ?? 0;
+
+              IconData syncIcon = Icons.sync;
+              Color syncColor = Colors.grey;
+
+              if (provider.isLoading) {
+                syncIcon = Icons.sync;
+                syncColor = AppColors.primaryGreen;
+              } else if (failedCount > 0) {
+                syncIcon = Icons.sync_problem;
+                syncColor = Colors.red;
+              } else if (pendingCount > 0) {
+                syncIcon = Icons.sync;
+                syncColor = Colors.orange;
+              } else {
+                syncIcon = Icons.sync;
+                syncColor = AppColors.primaryGreen;
+              }
+
+              return Stack(
+                children: [
+                  IconButton(
+                    onPressed: provider.isLoading ? null : _syncNotes,
+                    icon: provider.isLoading
+                        ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation(AppColors.primaryGreen),
+                      ),
+                    )
+                        : Icon(syncIcon, color: syncColor),
+                    tooltip: 'Sync Notes',
+                  ),
+                  if (pendingCount > 0 || failedCount > 0)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: failedCount > 0 ? Colors.red : Colors.orange,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 12,
+                          minHeight: 12,
+                        ),
+                        child: Text(
+                          '${pendingCount + failedCount}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 8,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+        ],
       ),
       body: SafeArea(
         child: Column(
@@ -137,9 +258,6 @@ class _FarmNotesScreenState extends State<FarmNotesScreen> {
                 ],
                 onChanged: (String? farmId) async {
                   if (farmId != null) {
-                    final selectedFarm = farmProvider.farms.firstWhere(
-                      (farm) => farm.id == farmId,
-                    );
                     await farmProvider.selectFarm(farmId);
                     if (farmProvider.selectedFarm != null) {
                       await _loadNotes();
@@ -151,14 +269,84 @@ class _FarmNotesScreenState extends State<FarmNotesScreen> {
               ),
             ),
 
+            // Sync Status Banner
+            Consumer<FarmProvider>(
+              builder: (context, provider, child) {
+                final syncStatus = provider.getNoteSyncStatus();
+                final pendingCount = syncStatus['pending'] ?? 0;
+                final failedCount = syncStatus['failed'] ?? 0;
+                final syncedCount = syncStatus['synced'] ?? 0;
+                final totalCount = syncStatus['total'] ?? 0;
+
+                if (totalCount == 0) return const SizedBox.shrink();
+
+                Color bannerColor = AppColors.primaryGreen;
+                String statusText = 'All notes synced';
+                IconData statusIcon = Icons.check_circle;
+
+                if (failedCount > 0) {
+                  bannerColor = Colors.red;
+                  statusText = '$failedCount notes failed to sync';
+                  statusIcon = Icons.error;
+                } else if (pendingCount > 0) {
+                  bannerColor = Colors.orange;
+                  statusText = '$pendingCount notes pending sync';
+                  statusIcon = Icons.sync;
+                }
+
+                return Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: bannerColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: bannerColor.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(statusIcon, color: bannerColor, size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          statusText,
+                          style: TextStyle(
+                            color: bannerColor,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      if (provider.isOffline)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.grey,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Text(
+                            'OFFLINE',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              },
+            ),
+
+            const SizedBox(height: 16),
+
             // Notes List or Empty State
             Expanded(
-              child:
-                  farmProvider.isLoading
-                      ? const Center(child: CircularProgressIndicator())
-                      : farmProvider.notes.isEmpty
-                      ? _buildEmptyState()
-                      : _buildNotesList(farmProvider),
+              child: farmProvider.isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : farmProvider.notes.isEmpty
+                  ? _buildEmptyState()
+                  : _buildNotesList(farmProvider),
             ),
           ],
         ),
@@ -300,7 +488,7 @@ class _FarmNotesScreenState extends State<FarmNotesScreen> {
         color: Colors.transparent,
         child: InkWell(
           onTap: () {
-            // Navigate to note details
+            // Navigate to note details or edit
           },
           borderRadius: BorderRadius.circular(20),
           child: Padding(
@@ -328,6 +516,9 @@ class _FarmNotesScreenState extends State<FarmNotesScreen> {
                         ),
                       ),
                     ),
+                    const SizedBox(width: 8),
+                    // Sync status indicator
+                    _buildSyncStatusIndicator(note),
                     const Spacer(),
                     PopupMenuButton<String>(
                       icon: Icon(
@@ -335,20 +526,38 @@ class _FarmNotesScreenState extends State<FarmNotesScreen> {
                         color: AppColors.textLight,
                         size: 20,
                       ),
-                      onSelected: (value) {
-                        // Handle menu item selection
+                      onSelected: (value) async {
+                        switch (value) {
+                          case 'edit':
+                          // Navigate to edit note
+                            break;
+                          case 'delete':
+                            await _deleteNote(note);
+                            break;
+                        }
                       },
-                      itemBuilder:
-                          (context) => [
-                            const PopupMenuItem(
-                              value: 'edit',
-                              child: Text('Edit'),
-                            ),
-                            const PopupMenuItem(
-                              value: 'delete',
-                              child: Text('Delete'),
-                            ),
-                          ],
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit, size: 16),
+                              SizedBox(width: 8),
+                              Text('Edit'),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete, size: 16, color: Colors.red),
+                              SizedBox(width: 8),
+                              Text('Delete', style: TextStyle(color: Colors.red)),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -373,6 +582,46 @@ class _FarmNotesScreenState extends State<FarmNotesScreen> {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSyncStatusIndicator(Note note) {
+    IconData icon;
+    Color color;
+    String tooltip;
+
+    switch (note.syncStatus) {
+      case NoteSyncStatus.synced:
+        icon = Icons.check_circle;
+        color = AppColors.primaryGreen;
+        tooltip = 'Synced';
+        break;
+      case NoteSyncStatus.pending:
+        icon = Icons.sync;
+        color = Colors.orange;
+        tooltip = 'Pending sync';
+        break;
+      case NoteSyncStatus.failed:
+        icon = Icons.error;
+        color = Colors.red;
+        tooltip = 'Sync failed';
+        break;
+    }
+
+    return Tooltip(
+      message: tooltip,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(
+          icon,
+          size: 12,
+          color: color,
         ),
       ),
     );

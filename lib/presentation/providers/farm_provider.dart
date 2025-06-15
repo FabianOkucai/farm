@@ -1,13 +1,11 @@
-// Updated FarmProvider.dart
+// lib/presentation/providers/farm_provider.dart - Complete Updated Version
 
 import 'package:flutter/material.dart';
 import '../../core/models/farm.dart';
 import '../../core/models/note.dart';
 import '../../core/models/season.dart';
 import '../../core/services/api_service.dart';
-import 'package:provider/provider.dart';
 import '../../core/utils/local_storage.dart';
-import '../../presentation/providers/auth_provider.dart';
 
 // Add this model class for activities
 class FarmActivity {
@@ -34,71 +32,24 @@ class FarmProvider extends ChangeNotifier {
   List<Season> _seasons = [];
   Season? _selectedSeason;
   List<Note> _notes = [];
-  List<FarmActivity> _activities = []; // Added activities list
+  List<FarmActivity> _activities = [];
 
   bool _isLoading = false;
+  bool _isOffline = false;
   String? _error;
 
   FarmProvider({required ApiService apiService}) : _apiService = apiService;
 
+  // Getters
   List<Farm> get farms => _farms;
   Farm? get selectedFarm => _selectedFarm;
   List<Season> get seasons => _seasons;
   Season? get selectedSeason => _selectedSeason;
   List<Note> get notes => _notes;
-  List<FarmActivity> get activities => _activities; // Updated getter
+  List<FarmActivity> get activities => _activities;
   bool get isLoading => _isLoading;
+  bool get isOffline => _isOffline;
   String? get error => _error;
-
-  /// Get current season data for a specific farm
-  Future<Map<String, dynamic>?> getCurrentSeasonData(String farmId) async {
-    try {
-      debugPrint('🌱 Loading current season data for farm: $farmId');
-
-      if (_apiService.isOffline) {
-        // Try to get from local cache
-        final localStorage = await LocalStorage.init();
-        final cachedData = localStorage.getMap('current_season_$farmId');
-        if (cachedData != null) {
-          debugPrint('📱 Using cached season data');
-          return cachedData;
-        }
-        throw Exception('No cached data available');
-      }
-
-      // Make API call to get farm with current season
-      final response = await _apiService.getFarmWithCurrentSeason(farmId);
-
-      if (response['status'] == 'success') {
-        final data = response['data'] as Map<String, dynamic>;
-
-        // Cache the response for offline use
-        final localStorage = await LocalStorage.init();
-        await localStorage.setMap('current_season_$farmId', data);
-
-        debugPrint('✅ Season data loaded and cached for farm $farmId');
-        return data;
-      } else {
-        throw Exception(response['message'] ?? 'Failed to load season data');
-      }
-    } catch (e) {
-      debugPrint('❌ Failed to load season data: $e');
-
-      // Try to get from local cache as fallback
-      try {
-        final localStorage = await LocalStorage.init();
-        final cachedData = localStorage.getMap('current_season_$farmId');
-        if (cachedData != null) {
-          debugPrint('📱 Using cached season data as fallback');
-          return cachedData;
-        }
-      } catch (cacheError) {
-        debugPrint('❌ Failed to load from cache: $cacheError');
-      }
-
-      return null;
-    }
-  }
 
   /// Creates a farm, optionally with a uuid. Returns uuid from backend if present.
   Future<String?> createFarmWithUuid(
@@ -115,7 +66,7 @@ class FarmProvider extends ChangeNotifier {
       debugPrint('📍 UUID present: ${uuid != null && uuid.isNotEmpty}');
       debugPrint('👤 Farmer name: $farmerName');
 
-      // 🔄 Call the NEW API method
+      // Call the API method
       final result = await _apiService.createFarmWithUuid(
         farm,
         uuid: uuid,
@@ -167,12 +118,13 @@ class FarmProvider extends ChangeNotifier {
       debugPrint('❌ Farm creation failed: $e');
       _isLoading = false;
       _error = e.toString();
+      _isOffline = true;
       notifyListeners();
       rethrow;
     }
   }
 
-// Add these helper methods to store seasons data
+  // Helper methods for storing seasons data
   Future<void> _storeAllSeasons(List<dynamic> seasons) async {
     try {
       final localStorage = await LocalStorage.init();
@@ -194,7 +146,7 @@ class FarmProvider extends ChangeNotifier {
     }
   }
 
-// UPDATE: Replace the existing loadFarms method
+  // Load farms for authenticated user
   Future<void> loadFarms() async {
     _isLoading = true;
     _error = null;
@@ -226,11 +178,13 @@ class FarmProvider extends ChangeNotifier {
       await localStorage.setFarms(_farms.map((f) => f.toJson()).toList());
 
       _isLoading = false;
+      _isOffline = false;
       notifyListeners();
     } catch (e) {
       debugPrint('❌ Failed to load farms: $e');
       _isLoading = false;
       _error = 'Unable to load farms. Please check your connection.';
+      _isOffline = true;
 
       // Try to load from local cache
       await _loadFromLocalCache();
@@ -238,7 +192,7 @@ class FarmProvider extends ChangeNotifier {
     }
   }
 
-// ADD: New method to load from local cache
+  // Load from local cache
   Future<void> _loadFromLocalCache() async {
     try {
       final localStorage = await LocalStorage.init();
@@ -264,7 +218,7 @@ class FarmProvider extends ChangeNotifier {
     }
   }
 
-// UPDATE: Enhance selectFarm to persist selection
+  // Select farm and persist selection
   Future<void> selectFarm(String farmId) async {
     try {
       final farm = _farms.firstWhere((f) => f.id == farmId);
@@ -283,7 +237,7 @@ class FarmProvider extends ChangeNotifier {
     }
   }
 
-// ADD: Get farm statistics for dashboard
+  // Get farm statistics for dashboard
   Map<String, dynamic> getFarmStatistics() {
     if (_farms.isEmpty) {
       return {
@@ -314,6 +268,7 @@ class FarmProvider extends ChangeNotifier {
     } catch (e) {
       _isLoading = false;
       _error = 'Unable to create farm. Working in offline mode.';
+      _isOffline = true;
       notifyListeners();
     }
   }
@@ -344,6 +299,7 @@ class FarmProvider extends ChangeNotifier {
         }
       } catch (e) {
         debugPrint('Failed to sync farm update with server: $e');
+        _isOffline = true;
       }
 
       _isLoading = false;
@@ -380,6 +336,7 @@ class FarmProvider extends ChangeNotifier {
         _farms.removeWhere((f) => f.id == farmId);
       } catch (e) {
         debugPrint('Failed to sync farm deletion with server: $e');
+        _isOffline = true;
       }
 
       _isLoading = false;
@@ -392,6 +349,7 @@ class FarmProvider extends ChangeNotifier {
     }
   }
 
+  // Season management
   Future<void> loadSeasons(String farmId) async {
     _isLoading = true;
     _error = null;
@@ -444,6 +402,93 @@ class FarmProvider extends ChangeNotifier {
     }
   }
 
+  // Get current season data for a farm
+  Future<Map<String, dynamic>?> getCurrentSeasonData(String farmId) async {
+    try {
+      debugPrint('🌱 Getting current season data for farm: $farmId');
+
+      // First, try to get from local storage
+      final localStorage = await LocalStorage.init();
+      final cachedSeasonData = localStorage.getMap('current_season_$farmId');
+
+      if (cachedSeasonData != null) {
+        debugPrint('✅ Found cached season data for farm');
+        return cachedSeasonData;
+      }
+
+      // If not in cache, try to get from API
+      try {
+        // We'll need to add this method to the API service
+        final seasonData = await _apiService.getCurrentSeasonForFarm(farmId);
+
+        if (seasonData != null) {
+          // Cache the season data
+          await localStorage.setMap('current_season_$farmId', seasonData);
+
+          debugPrint('✅ Retrieved and cached current season data');
+          return seasonData;
+        }
+      } catch (e) {
+        debugPrint('❌ Failed to get season data from API: $e');
+        _isOffline = true;
+      }
+
+      // Fallback: Generate mock season data based on farm's planting date
+      final farm = _farms.firstWhere((f) => f.id == farmId, orElse: () => throw Exception('Farm not found'));
+      final mockSeasonData = _generateMockSeasonData(farm);
+
+      // Cache the mock data
+      await localStorage.setMap('current_season_$farmId', mockSeasonData);
+
+      debugPrint('📱 Generated mock season data for offline use');
+      return mockSeasonData;
+
+    } catch (e) {
+      debugPrint('❌ Failed to get current season data: $e');
+      return null;
+    }
+  }
+
+  // Generate mock season data based on farm's planting date
+  Map<String, dynamic> _generateMockSeasonData(Farm farm) {
+    final now = DateTime.now();
+    final plantingDate = farm.plantingDate;
+    final monthsSincePlanting = ((now.difference(plantingDate).inDays) / 30).floor() + 1;
+    final currentMonth = monthsSincePlanting.clamp(1, 12);
+
+    // Map of month activities
+    final monthActivities = {
+      1: {'title': 'Land Preparation', 'description': 'Prepare soil and planting area'},
+      2: {'title': 'Planting', 'description': 'Plant mango seedlings'},
+      3: {'title': 'Early Care', 'description': 'Water and fertilize young plants'},
+      4: {'title': 'Growth Monitoring', 'description': 'Monitor plant growth and health'},
+      5: {'title': 'Pest Control', 'description': 'Apply pest control measures'},
+      6: {'title': 'Fertilization', 'description': 'Apply growth fertilizers'},
+      7: {'title': 'Pruning', 'description': 'Prune and shape the trees'},
+      8: {'title': 'Disease Prevention', 'description': 'Apply disease prevention treatments'},
+      9: {'title': 'Fruit Development', 'description': 'Monitor fruit development'},
+      10: {'title': 'Harvest Preparation', 'description': 'Prepare for harvest season'},
+      11: {'title': 'Harvest', 'description': 'Harvest mature fruits'},
+      12: {'title': 'Post-Harvest Care', 'description': 'Clean up and prepare for next season'},
+    };
+
+    final activity = monthActivities[currentMonth] ?? monthActivities[1]!;
+
+    return {
+      'month': currentMonth,
+      'title': activity['title'],
+      'short_description': activity['description'],
+      'full_instructions': 'During month $currentMonth: ${activity['description']}. Monitor your plants regularly and follow recommended farming practices.',
+      'activities': [
+        {
+          'title': activity['title'],
+          'description': activity['description']
+        }
+      ],
+      'is_mock': true, // Flag to indicate this is generated data
+    };
+  }
+
   Future<void> selectSeason(String seasonId) async {
     _isLoading = true;
     _error = null;
@@ -481,83 +526,278 @@ class FarmProvider extends ChangeNotifier {
     }
   }
 
+  // ============================================================================
+  // NOTES MANAGEMENT (OFFLINE-FIRST APPROACH)
+  // ============================================================================
+
+  // Load notes from local storage
   Future<void> loadNotes(String farmId, String farmerId) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      // Get all farmer notes and filter by farmId
-      final allNotes = await _apiService.getFarmerNotes(farmerId);
-      _notes = allNotes.where((note) => note.farmId == farmId).toList();
+      debugPrint('📚 Loading notes for farm: $farmId');
+
+      // Load notes from local storage
+      final localStorage = await LocalStorage.init();
+      final localNotes = await localStorage.getNotesForFarm(farmId);
+
+      _notes = localNotes;
+
+      debugPrint('✅ Loaded ${_notes.length} notes from local storage');
 
       _isLoading = false;
       notifyListeners();
+
+      // Background sync if needed
+      _backgroundSyncNotes();
+
     } catch (e) {
+      debugPrint('❌ Failed to load notes: $e');
       _isLoading = false;
-      _error = e.toString();
+      _error = 'Failed to load notes: ${e.toString()}';
       notifyListeners();
     }
   }
 
-  Future<void> createNote(Note note) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
+  // Create note offline
+  Future<void> createNoteOffline({
+    required String title,
+    required String content,
+    required String farmId,
+    required String userId,
+    String? seasonId,
+  }) async {
     try {
-      final newNote = await _apiService.createNote(note);
-      _notes.add(newNote);
-      _isLoading = false;
+      debugPrint('📝 Creating note offline: $title');
+
+      final note = Note(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        title: title,
+        content: content,
+        farmId: farmId,
+        seasonId: seasonId,
+        userId: userId,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        syncStatus: NoteSyncStatus.pending,
+      );
+
+      // Store locally
+      final localStorage = await LocalStorage.init();
+      await localStorage.storeNote(note);
+
+      // Add to local list for immediate UI update
+      _notes.insert(0, note);
       notifyListeners();
+
+      debugPrint('✅ Note created offline and stored locally');
+
+      // Try immediate sync if online
+      _backgroundSyncNotes();
+
     } catch (e) {
-      _isLoading = false;
-      _error = e.toString();
+      debugPrint('❌ Failed to create note offline: $e');
+      _error = 'Failed to create note: ${e.toString()}';
       notifyListeners();
+      rethrow;
     }
   }
 
-  Future<void> updateNote(Note note) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
+  // Update note offline
+  Future<void> updateNoteOffline(Note note, {
+    String? title,
+    String? content,
+  }) async {
     try {
-      final updatedNote = await _apiService.updateNote(note);
+      debugPrint('✏️ Updating note offline: ${note.id}');
 
+      final updatedNote = note.copyWith(
+        title: title ?? note.title,
+        content: content ?? note.content,
+        updatedAt: DateTime.now(),
+        syncStatus: NoteSyncStatus.pending,
+      );
+
+      // Store locally
+      final localStorage = await LocalStorage.init();
+      await localStorage.storeNote(updatedNote);
+
+      // Update local list
       final index = _notes.indexWhere((n) => n.id == note.id);
-      if (index != -1) {
+      if (index >= 0) {
         _notes[index] = updatedNote;
+        notifyListeners();
       }
 
+      debugPrint('✅ Note updated offline');
+
+      // Try immediate sync if online
+      _backgroundSyncNotes();
+
+    } catch (e) {
+      debugPrint('❌ Failed to update note offline: $e');
+      _error = 'Failed to update note: ${e.toString()}';
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  // Delete note offline
+  Future<void> deleteNoteOffline(String noteId) async {
+    try {
+      debugPrint('🗑️ Deleting note offline: $noteId');
+
+      // Mark as deleted locally
+      final localStorage = await LocalStorage.init();
+      await localStorage.deleteNoteLocally(noteId);
+
+      // Remove from local list
+      _notes.removeWhere((n) => n.id == noteId);
+      notifyListeners();
+
+      debugPrint('✅ Note deleted offline');
+
+      // Try immediate sync if online
+      _backgroundSyncNotes();
+
+    } catch (e) {
+      debugPrint('❌ Failed to delete note offline: $e');
+      _error = 'Failed to delete note: ${e.toString()}';
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  // Background sync for notes
+  Future<void> _backgroundSyncNotes() async {
+    if (_isOffline) return;
+
+    try {
+      final localStorage = await LocalStorage.init();
+
+      // Check if sync is needed
+      final shouldSync = await localStorage.shouldSyncNotes();
+      if (!shouldSync) {
+        debugPrint('📱 No note sync needed');
+        return;
+      }
+
+      final unsyncedNotes = await localStorage.getUnsyncedNotes();
+      if (unsyncedNotes.isEmpty) {
+        debugPrint('📱 No unsynced notes found');
+        return;
+      }
+
+      debugPrint('🔄 Background syncing ${unsyncedNotes.length} notes...');
+
+      final syncResult = await _apiService.syncNotes(unsyncedNotes);
+      final results = syncResult['results'] as List<dynamic>;
+
+      // Process sync results
+      for (int i = 0; i < results.length; i++) {
+        final result = results[i];
+        final localNote = unsyncedNotes[i];
+
+        if (result['success'] == true) {
+          // Mark as synced
+          await localStorage.markNoteAsSynced(
+            localNote.id,
+            result['server_id']?.toString() ?? '',
+          );
+
+          // Update local list sync status
+          final index = _notes.indexWhere((n) => n.id == localNote.id);
+          if (index >= 0) {
+            _notes[index] = _notes[index].copyWith(
+              serverId: result['server_id']?.toString(),
+              syncStatus: NoteSyncStatus.synced,
+              syncedAt: DateTime.now(),
+            );
+          }
+        } else {
+          // Mark as failed
+          await localStorage.markNoteAsFailed(
+            localNote.id,
+            result['error']?.toString() ?? 'Unknown error',
+          );
+
+          // Update local list sync status
+          final index = _notes.indexWhere((n) => n.id == localNote.id);
+          if (index >= 0) {
+            _notes[index] = _notes[index].copyWith(
+              syncStatus: NoteSyncStatus.failed,
+            );
+          }
+        }
+      }
+
+      // Update last sync time
+      await localStorage.setLastNoteSync(DateTime.now());
+
+      debugPrint('✅ Background note sync completed');
+      notifyListeners();
+
+    } catch (e) {
+      debugPrint('❌ Background note sync failed: $e');
+      _isOffline = true;
+    }
+  }
+
+  // Manual sync for notes (called from UI)
+  Future<void> syncNotes() async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      await _backgroundSyncNotes();
       _isLoading = false;
       notifyListeners();
     } catch (e) {
       _isLoading = false;
-      _error = e.toString();
+      _error = 'Sync failed: ${e.toString()}';
       notifyListeners();
     }
   }
 
+  // Get sync status for notes
+  Map<String, int> getNoteSyncStatus() {
+    final synced = _notes.where((n) => n.isSynced).length;
+    final pending = _notes.where((n) => n.isPending).length;
+    final failed = _notes.where((n) => n.hasFailed).length;
+
+    return {
+      'synced': synced,
+      'pending': pending,
+      'failed': failed,
+      'total': _notes.length,
+    };
+  }
+
+  // ============================================================================
+  // LEGACY METHODS (for backward compatibility)
+  // ============================================================================
+
+  @Deprecated('Use createNoteOffline instead')
+  Future<void> createNote(Note note) async {
+    await createNoteOffline(
+      title: note.title,
+      content: note.content,
+      farmId: note.farmId,
+      userId: note.userId,
+      seasonId: note.seasonId,
+    );
+  }
+
+  @Deprecated('Use updateNoteOffline instead')
+  Future<void> updateNote(Note note) async {
+    await updateNoteOffline(note);
+  }
+
+  @Deprecated('Use deleteNoteOffline instead')
   Future<void> deleteNote(String noteId) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
-    try {
-      // Mark note as deleted locally
-      final index = _notes.indexWhere((note) => note.id == noteId);
-      if (index != -1) {
-        _notes[index] = _notes[index].copyWith(isDeleted: true);
-      }
-
-      _isLoading = false;
-      notifyListeners();
-    } catch (e) {
-      _isLoading = false;
-      _error = e.toString();
-      notifyListeners();
-    }
+    await deleteNoteOffline(noteId);
   }
 
   Future<void> createNoteForFarm({
@@ -567,18 +807,17 @@ class FarmProvider extends ChangeNotifier {
     required String farmerId,
     required String userId,
   }) async {
-    final note = Note(
-      id: DateTime.now().millisecondsSinceEpoch.toString(), // Temporary ID
-      farmId: farmId,
-      userId: userId,
+    await createNoteOffline(
       title: title,
       content: content,
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
+      farmId: farmId,
+      userId: userId,
     );
-
-    await createNote(note);
   }
+
+  // ============================================================================
+  // UTILITY METHODS
+  // ============================================================================
 
   void clearError() {
     _error = null;
@@ -593,8 +832,7 @@ class FarmProvider extends ChangeNotifier {
 
     try {
       // Get all farms that need syncing
-      final farmsToSync =
-      _farms.where((f) => !f.isSynced || f.isDeleted).toList();
+      final farmsToSync = _farms.where((f) => !f.isSynced || f.isDeleted).toList();
 
       if (farmsToSync.isNotEmpty) {
         // Sync farms
@@ -603,26 +841,30 @@ class FarmProvider extends ChangeNotifier {
         );
 
         // Update local farms with sync status
-        _farms =
-            _farms.map((farm) {
-              if (farmsToSync.any((f) => f.id == farm.id)) {
-                return farm.copyWith(
-                  isSynced: true,
-                  lastSyncedAt: DateTime.now(),
-                );
-              }
-              return farm;
-            }).toList();
+        _farms = _farms.map((farm) {
+          if (farmsToSync.any((f) => f.id == farm.id)) {
+            return farm.copyWith(
+              isSynced: true,
+              lastSyncedAt: DateTime.now(),
+            );
+          }
+          return farm;
+        }).toList();
 
         // Remove locally deleted farms that have been synced
         _farms.removeWhere((f) => f.isDeleted && f.isSynced);
       }
 
+      // Sync notes
+      await _backgroundSyncNotes();
+
       _isLoading = false;
+      _isOffline = false;
       notifyListeners();
     } catch (e) {
       _isLoading = false;
       _error = e.toString();
+      _isOffline = true;
       notifyListeners();
       rethrow;
     }
@@ -636,21 +878,16 @@ class FarmProvider extends ChangeNotifier {
     try {
       final data = await _apiService.getInitialDataPackage();
 
-      // Update farmer data if needed
-      // This would typically be handled by the AuthProvider
-
       // Load farms
       if (data['farms'] != null) {
-        _farms =
-            (data['farms'] as List).map((json) => Farm.fromJson(json)).toList();
+        _farms = (data['farms'] as List).map((json) => Farm.fromJson(json)).toList();
       }
 
       // Load seasons
       if (data['seasons'] != null) {
-        _seasons =
-            (data['seasons'] as List)
-                .map((json) => Season.fromJson(json))
-                .toList();
+        _seasons = (data['seasons'] as List)
+            .map((json) => Season.fromJson(json))
+            .toList();
       }
 
       _isLoading = false;
@@ -668,7 +905,7 @@ class FarmProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _notes = await _apiService.getFarmerNotes(farmerId);
+      _notes = await _apiService.getAllFarmerNotes();
       _isLoading = false;
       notifyListeners();
     } catch (e) {

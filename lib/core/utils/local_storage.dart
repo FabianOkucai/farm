@@ -1,8 +1,10 @@
+// lib/core/utils/local_storage.dart (Updated sections)
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
 import '../models/farm.dart';
 import '../models/season.dart';
+import '../models/note.dart';
 
 class LocalStorage {
   final SharedPreferences _prefs;
@@ -10,7 +12,7 @@ class LocalStorage {
 
   LocalStorage._(this._prefs);
 
-  // UUID helpers
+  // Existing code...
   static const String uuidKey = 'uuid';
   static const String userDataKey = 'user_data';
   static const String farmsKey = 'farms';
@@ -18,6 +20,7 @@ class LocalStorage {
   static const String notesKey = 'notes';
   static const String notificationsKey = 'notifications';
   static const String settingsKey = 'settings';
+  static const String lastNoteSyncKey = 'last_note_sync';
 
   static Future<LocalStorage> init() async {
     if (_instance != null) return _instance!;
@@ -32,7 +35,7 @@ class LocalStorage {
     }
   }
 
-  // UUID methods
+  // Existing methods remain the same...
   Future<void> setUuid(String uuid) async {
     await setString(uuidKey, uuid);
   }
@@ -41,7 +44,150 @@ class LocalStorage {
     return getString(uuidKey);
   }
 
-  // User data methods
+  // Enhanced Notes methods for offline-first approach
+  Future<void> storeNote(Note note) async {
+    try {
+      final notes = await getNotes() ?? [];
+
+      // Check if note already exists (by local ID)
+      final existingIndex = notes.indexWhere((n) => n['id'] == note.id);
+
+      if (existingIndex >= 0) {
+        // Update existing note
+        notes[existingIndex] = note.toLocalJson();
+      } else {
+        // Add new note
+        notes.add(note.toLocalJson());
+      }
+
+      await setList(notesKey, notes);
+      debugPrint('📝 Stored note locally: ${note.title}');
+    } catch (e) {
+      debugPrint('❌ Failed to store note: $e');
+      rethrow;
+    }
+  }
+
+  Future<List<Note>> getNotesForFarm(String farmId) async {
+    try {
+      final notesData = await getNotes() ?? [];
+      final farmNotes = notesData
+          .where((noteData) => noteData['farm_id'] == farmId && (noteData['is_deleted'] ?? 0) == 0)
+          .map((noteData) => Note.fromLocalJson(noteData))
+          .toList();
+
+      // Sort by creation date (newest first)
+      farmNotes.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+      debugPrint('📚 Retrieved ${farmNotes.length} notes for farm: $farmId');
+      return farmNotes;
+    } catch (e) {
+      debugPrint('❌ Failed to get notes for farm: $e');
+      return [];
+    }
+  }
+
+  Future<List<Note>> getUnsyncedNotes() async {
+    try {
+      final notesData = await getNotes() ?? [];
+      final unsyncedNotes = notesData
+          .where((noteData) =>
+      noteData['sync_status'] == 'pending' &&
+          (noteData['is_deleted'] ?? 0) == 0)
+          .map((noteData) => Note.fromLocalJson(noteData))
+          .toList();
+
+      debugPrint('🔄 Found ${unsyncedNotes.length} unsynced notes');
+      return unsyncedNotes;
+    } catch (e) {
+      debugPrint('❌ Failed to get unsynced notes: $e');
+      return [];
+    }
+  }
+
+  Future<void> markNoteAsSynced(String localId, String serverId) async {
+    try {
+      final notes = await getNotes() ?? [];
+      final noteIndex = notes.indexWhere((n) => n['id'] == localId);
+
+      if (noteIndex >= 0) {
+        notes[noteIndex]['server_id'] = serverId;
+        notes[noteIndex]['sync_status'] = 'synced';
+        notes[noteIndex]['synced_at'] = DateTime.now().toIso8601String();
+
+        await setList(notesKey, notes);
+        debugPrint('✅ Marked note as synced: $localId -> $serverId');
+      }
+    } catch (e) {
+      debugPrint('❌ Failed to mark note as synced: $e');
+    }
+  }
+
+  Future<void> markNoteAsFailed(String localId, String error) async {
+    try {
+      final notes = await getNotes() ?? [];
+      final noteIndex = notes.indexWhere((n) => n['id'] == localId);
+
+      if (noteIndex >= 0) {
+        notes[noteIndex]['sync_status'] = 'failed';
+        notes[noteIndex]['sync_error'] = error;
+        notes[noteIndex]['last_sync_attempt'] = DateTime.now().toIso8601String();
+
+        await setList(notesKey, notes);
+        debugPrint('❌ Marked note as failed: $localId');
+      }
+    } catch (e) {
+      debugPrint('❌ Failed to mark note as failed: $e');
+    }
+  }
+
+  Future<void> deleteNoteLocally(String localId) async {
+    try {
+      final notes = await getNotes() ?? [];
+      final noteIndex = notes.indexWhere((n) => n['id'] == localId);
+
+      if (noteIndex >= 0) {
+        notes[noteIndex]['is_deleted'] = 1;
+        notes[noteIndex]['updated_at'] = DateTime.now().toIso8601String();
+
+        // If not synced yet, we can remove it completely
+        if (notes[noteIndex]['sync_status'] == 'pending') {
+          notes.removeAt(noteIndex);
+        } else {
+          // Mark as deleted but keep for sync
+          notes[noteIndex]['sync_status'] = 'pending';
+        }
+
+        await setList(notesKey, notes);
+        debugPrint('🗑️ Deleted note locally: $localId');
+      }
+    } catch (e) {
+      debugPrint('❌ Failed to delete note: $e');
+    }
+  }
+
+  // Sync timestamp management
+  Future<void> setLastNoteSync(DateTime timestamp) async {
+    await setString(lastNoteSyncKey, timestamp.toIso8601String());
+  }
+
+  DateTime? getLastNoteSync() {
+    final timestampStr = getString(lastNoteSyncKey);
+    return timestampStr != null ? DateTime.parse(timestampStr) : null;
+  }
+
+  Future<bool> shouldSyncNotes() async {
+    final lastSync = getLastNoteSync();
+    if (lastSync == null) return true;
+
+    // Sync every 24 hours or if there are failed notes
+    final daysSinceSync = DateTime.now().difference(lastSync).inDays;
+    final unsyncedNotes = await getUnsyncedNotes();
+
+    return daysSinceSync >= 1 || unsyncedNotes.isNotEmpty;
+  }
+
+  // Existing methods remain the same...
   Future<void> setUserData(Map<String, dynamic> data) async {
     await setMap(userDataKey, data);
   }
@@ -50,7 +196,6 @@ class LocalStorage {
     return getMap(userDataKey);
   }
 
-  // Farms methods
   Future<void> setFarms(List<Map<String, dynamic>> farms) async {
     await setList(farmsKey, farms);
   }
@@ -59,7 +204,6 @@ class LocalStorage {
     return await getList(farmsKey);
   }
 
-  // Seasons methods
   Future<void> setSeasons(List<Map<String, dynamic>> seasons) async {
     await setList(seasonsKey, seasons);
   }
@@ -68,7 +212,6 @@ class LocalStorage {
     return await getList(seasonsKey);
   }
 
-  // Notes methods
   Future<void> setNotes(List<Map<String, dynamic>> notes) async {
     await setList(notesKey, notes);
   }
@@ -77,10 +220,7 @@ class LocalStorage {
     return await getList(notesKey);
   }
 
-  // Notifications methods
-  Future<void> setNotifications(
-    List<Map<String, dynamic>> notifications,
-  ) async {
+  Future<void> setNotifications(List<Map<String, dynamic>> notifications) async {
     await setList(notificationsKey, notifications);
   }
 
@@ -88,7 +228,6 @@ class LocalStorage {
     return await getList(notificationsKey);
   }
 
-  // Settings methods
   Future<void> setSettings(Map<String, dynamic> settings) async {
     await setMap(settingsKey, settings);
   }
@@ -97,7 +236,7 @@ class LocalStorage {
     return getMap(settingsKey);
   }
 
-  // Generic methods
+  // Generic methods (keep existing implementation)
   Future<void> setString(String key, String value) async {
     try {
       await _prefs.setString(key, value);
@@ -219,7 +358,7 @@ class LocalStorage {
       final farms = await getFarms();
       if (farms != null) {
         return farms.firstWhere(
-          (farm) => farm['id'] == farmId,
+              (farm) => farm['id'] == farmId,
           orElse: () => <String, dynamic>{},
         );
       }
@@ -235,7 +374,7 @@ class LocalStorage {
       final seasons = await getSeasons();
       if (seasons != null) {
         return seasons.firstWhere(
-          (season) => season['id'] == seasonId,
+              (season) => season['id'] == seasonId,
           orElse: () => <String, dynamic>{},
         );
       }
