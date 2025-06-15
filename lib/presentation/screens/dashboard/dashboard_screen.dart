@@ -18,6 +18,7 @@ import '../schedule/schedule_screen.dart';
 import '../../providers/notification_provider.dart';
 import '../notifications/notifications_screen.dart';
 import '../contact/contact_screen.dart';
+import '../farm_progress/farm_progress_detail_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
@@ -32,7 +33,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    _initializeDashboard();
+    // Use post-frame callback to avoid setState during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeDashboard();
+    });
   }
 
   Future<void> _initializeDashboard() async {
@@ -44,10 +48,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       await farmProvider.loadFarms();
     }
 
-    // Load notes for selected farm if available
+    // Load notes for selected farm if available (without triggering rebuild)
     if (farmProvider.selectedFarm != null) {
       debugPrint('📝 Loading notes for selected farm...');
-      await farmProvider.loadNotes(
+      // Don't await this to avoid triggering setState during build
+      farmProvider.loadNotes(
         farmProvider.selectedFarm!.id,
         farmProvider.selectedFarm!.farmerId,
       );
@@ -81,6 +86,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
         );
         break;
     }
+  }
+
+  void _navigateToFarmProgress(String farmId) {
+    NavigationHelper.navigateTo(
+      context,
+      FarmProgressDetailScreen(farmId: farmId),
+    );
   }
 
   @override
@@ -291,7 +303,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }
 
         return GestureDetector(
-          onTap: () => NavigationHelper.navigateTo(context, const SeasonsScreen()),
+          onTap: () => _navigateToFarmProgress(selectedFarm.id),
           child: Container(
             width: double.infinity,
             padding: const EdgeInsets.all(20),
@@ -310,6 +322,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Header Row
                 Row(
                   children: [
                     Text(
@@ -348,33 +361,325 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                const Divider(height: 1),
+
+                // Current Season Display
+                FutureBuilder<Map<String, dynamic>?>(
+                  future: farmProvider.getCurrentSeasonData(selectedFarm.id),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return _buildSeasonLoadingState();
+                    }
+
+                    if (snapshot.hasError) {
+                      return _buildSeasonErrorState();
+                    }
+
+                    final seasonData = snapshot.data;
+
+                    // Handle null data gracefully
+                    if (seasonData == null) {
+                      return _buildSeasonErrorState();
+                    }
+
+                    // Safely extract data with null checks
+                    final farm = seasonData['farm'] as Map<String, dynamic>?;
+                    final currentSeason = seasonData['current_season'] as Map<String, dynamic>?;
+
+                    if (farm == null || currentSeason == null) {
+                      return _buildSeasonErrorState();
+                    }
+
+                    return _buildCurrentSeasonDisplay(farm, currentSeason);
+                  },
+                ),
+
                 const SizedBox(height: 16),
 
-                // Progress Timeline
-                _buildTimelineItem(
-                  title: '2nd Inspection completed',
-                  date: '23rd August - 25th August',
-                  isCompleted: true,
-                  isLast: false,
-                ),
-                _buildTimelineItem(
-                  title: '4th spray season',
-                  date: '23/04 - 25/04',
-                  isCompleted: true,
-                  isLast: false,
-                ),
-                _buildTimelineItem(
-                  title: 'Mulching phase',
-                  date: '23rd August - 25th August',
-                  isCompleted: false,
-                  isLast: true,
+                // Tap to view more indicator
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryGreen.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppColors.primaryGreen.withOpacity(0.1),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.touch_app_outlined,
+                        color: AppColors.primaryGreen,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Tap to view detailed monthly guide',
+                        style: TextStyle(
+                          color: AppColors.primaryGreen,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(
+                        Icons.arrow_forward_ios,
+                        color: AppColors.primaryGreen,
+                        size: 12,
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildCurrentSeasonDisplay(Map<String, dynamic> farm, Map<String, dynamic> currentSeason) {
+    // Safe extraction with null checks and defaults
+    final currentMonth = (currentSeason['month'] as int?) ?? 1;
+    final title = (currentSeason['title'] as String?) ?? 'Season Information';
+    final shortDescription = (currentSeason['short_description'] as String?) ?? 'Loading season details...';
+    final ageInMonths = ((farm['age_in_months'] as num?) ?? 0.0).toDouble();
+    final activities = (currentSeason['activities'] as List<dynamic>?) ?? [];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Month Badge and Progress
+        Row(
+          children: [
+            // Month Badge
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    AppColors.primaryGreen,
+                    AppColors.primaryGreen.withOpacity(0.8),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primaryGreen.withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.eco,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Month $currentMonth',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+
+            // Age Display
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.primaryLightGreen.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Text(
+                '${ageInMonths.toStringAsFixed(1)} months old',
+                style: TextStyle(
+                  color: AppColors.primaryGreen,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 12),
+
+        // Season Title
+        Text(
+          title,
+          style: AppTextStyles.bodyLarge.copyWith(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+
+        const SizedBox(height: 6),
+
+        // Short Description
+        Text(
+          shortDescription,
+          style: AppTextStyles.bodyMedium.copyWith(
+            color: AppColors.textMedium,
+            fontSize: 13,
+          ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+
+        const SizedBox(height: 12),
+
+        // Progress Bar
+        _buildMonthProgressBar(currentMonth, ageInMonths),
+
+        const SizedBox(height: 12),
+
+        // Activities Preview
+        Row(
+          children: [
+            Icon(
+              Icons.checklist_outlined,
+              color: AppColors.primaryGreen,
+              size: 16,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              '${activities.length} key activities this month',
+              style: TextStyle(
+                color: AppColors.primaryGreen,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMonthProgressBar(int currentMonth, double ageInMonths) {
+    final monthProgress = (ageInMonths % 1).clamp(0.0, 1.0);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Month Progress',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textMedium,
+              ),
+            ),
+            Text(
+              '${(monthProgress * 100).toInt()}%',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primaryGreen,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Container(
+          height: 6,
+          decoration: BoxDecoration(
+            color: AppColors.primaryLightGreen.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(3),
+          ),
+          child: FractionallySizedBox(
+            alignment: Alignment.centerLeft,
+            widthFactor: monthProgress,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    AppColors.primaryGreen,
+                    AppColors.primaryGreen.withOpacity(0.8),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(3),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSeasonLoadingState() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundGrey,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryGreen),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            'Loading season information...',
+            style: TextStyle(
+              color: AppColors.textMedium,
+              fontSize: 14,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSeasonErrorState() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.red.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.red.withOpacity(0.2),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.error_outline,
+            color: Colors.red,
+            size: 20,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Unable to load season data. Check your connection.',
+              style: TextStyle(
+                color: Colors.red,
+                fontSize: 12,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -433,73 +738,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ],
         ],
       ),
-    );
-  }
-
-  Widget _buildTimelineItem({
-    required String title,
-    required String date,
-    required bool isCompleted,
-    required bool isLast,
-  }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Timeline dot and line
-        Column(
-          children: [
-            Container(
-              width: 16,
-              height: 16,
-              decoration: BoxDecoration(
-                color: isCompleted ? AppColors.primaryGreen : Colors.white,
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color:
-                  isCompleted
-                      ? AppColors.primaryGreen
-                      : AppColors.textLight,
-                  width: 2,
-                ),
-              ),
-            ),
-            if (!isLast)
-              Container(
-                width: 2,
-                height: 40,
-                color: AppColors.primaryLightGreen.withOpacity(0.3),
-              ),
-          ],
-        ),
-        const SizedBox(width: 12),
-
-        // Content
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  date,
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textLight,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
     );
   }
 

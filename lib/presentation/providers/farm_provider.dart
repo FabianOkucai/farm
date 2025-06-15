@@ -27,7 +27,78 @@ class FarmActivity {
 }
 
 class FarmProvider extends ChangeNotifier {
-  // ... existing fields and constructor ...
+  final ApiService _apiService;
+
+  List<Farm> _farms = [];
+  Farm? _selectedFarm;
+  List<Season> _seasons = [];
+  Season? _selectedSeason;
+  List<Note> _notes = [];
+  List<FarmActivity> _activities = []; // Added activities list
+
+  bool _isLoading = false;
+  String? _error;
+
+  FarmProvider({required ApiService apiService}) : _apiService = apiService;
+
+  List<Farm> get farms => _farms;
+  Farm? get selectedFarm => _selectedFarm;
+  List<Season> get seasons => _seasons;
+  Season? get selectedSeason => _selectedSeason;
+  List<Note> get notes => _notes;
+  List<FarmActivity> get activities => _activities; // Updated getter
+  bool get isLoading => _isLoading;
+  String? get error => _error;
+
+  /// Get current season data for a specific farm
+  Future<Map<String, dynamic>?> getCurrentSeasonData(String farmId) async {
+    try {
+      debugPrint('🌱 Loading current season data for farm: $farmId');
+
+      if (_apiService.isOffline) {
+        // Try to get from local cache
+        final localStorage = await LocalStorage.init();
+        final cachedData = localStorage.getMap('current_season_$farmId');
+        if (cachedData != null) {
+          debugPrint('📱 Using cached season data');
+          return cachedData;
+        }
+        throw Exception('No cached data available');
+      }
+
+      // Make API call to get farm with current season
+      final response = await _apiService.getFarmWithCurrentSeason(farmId);
+
+      if (response['status'] == 'success') {
+        final data = response['data'] as Map<String, dynamic>;
+
+        // Cache the response for offline use
+        final localStorage = await LocalStorage.init();
+        await localStorage.setMap('current_season_$farmId', data);
+
+        debugPrint('✅ Season data loaded and cached for farm $farmId');
+        return data;
+      } else {
+        throw Exception(response['message'] ?? 'Failed to load season data');
+      }
+    } catch (e) {
+      debugPrint('❌ Failed to load season data: $e');
+
+      // Try to get from local cache as fallback
+      try {
+        final localStorage = await LocalStorage.init();
+        final cachedData = localStorage.getMap('current_season_$farmId');
+        if (cachedData != null) {
+          debugPrint('📱 Using cached season data as fallback');
+          return cachedData;
+        }
+      } catch (cacheError) {
+        debugPrint('❌ Failed to load from cache: $cacheError');
+      }
+
+      return null;
+    }
+  }
 
   /// Creates a farm, optionally with a uuid. Returns uuid from backend if present.
   Future<String?> createFarmWithUuid(
@@ -122,29 +193,6 @@ class FarmProvider extends ChangeNotifier {
       debugPrint('❌ Failed to store current season: $e');
     }
   }
-
-  final ApiService _apiService;
-
-  List<Farm> _farms = [];
-  Farm? _selectedFarm;
-  List<Season> _seasons = [];
-  Season? _selectedSeason;
-  List<Note> _notes = [];
-  List<FarmActivity> _activities = []; // Added activities list
-
-  bool _isLoading = false;
-  String? _error;
-
-  FarmProvider({required ApiService apiService}) : _apiService = apiService;
-
-  List<Farm> get farms => _farms;
-  Farm? get selectedFarm => _selectedFarm;
-  List<Season> get seasons => _seasons;
-  Season? get selectedSeason => _selectedSeason;
-  List<Note> get notes => _notes;
-  List<FarmActivity> get activities => _activities; // Updated getter
-  bool get isLoading => _isLoading;
-  String? get error => _error;
 
 // UPDATE: Replace the existing loadFarms method
   Future<void> loadFarms() async {
@@ -546,7 +594,7 @@ class FarmProvider extends ChangeNotifier {
     try {
       // Get all farms that need syncing
       final farmsToSync =
-          _farms.where((f) => !f.isSynced || f.isDeleted).toList();
+      _farms.where((f) => !f.isSynced || f.isDeleted).toList();
 
       if (farmsToSync.isNotEmpty) {
         // Sync farms
@@ -579,31 +627,6 @@ class FarmProvider extends ChangeNotifier {
       rethrow;
     }
   }
-
-  // Future<void> loadAllFarms(String farmerId) async {
-  //   _isLoading = true;
-  //   _error = null;
-  //   notifyListeners();
-  //
-  //   try {
-  //     // Try to load from server first
-  //     try {
-  //       final farms = await _apiService.getFarms(farmerId);
-  //       _farms = farms;
-  //     } catch (e) {
-  //       debugPrint('Failed to load farms from server: $e');
-  //       // If server load fails, keep existing local farms
-  //     }
-  //
-  //     _isLoading = false;
-  //     notifyListeners();
-  //   } catch (e) {
-  //     _isLoading = false;
-  //     _error = e.toString();
-  //     notifyListeners();
-  //     rethrow;
-  //   }
-  // }
 
   Future<void> loadInitialData() async {
     _isLoading = true;

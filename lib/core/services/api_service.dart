@@ -181,7 +181,7 @@ class ApiService {
     required LocalStorage localStorage,
     http.Client? httpClient,
   }) : _httpClient = httpClient ?? http.Client(),
-       _localStorage = localStorage {
+        _localStorage = localStorage {
     _checkConnectivity();
   }
 
@@ -242,11 +242,11 @@ class ApiService {
   }
 
   Future<dynamic> _makeRequest(
-    String method,
-    String endpoint, {
-    Map<String, dynamic>? body,
-    Map<String, String>? queryParams,
-  }) async {
+      String method,
+      String endpoint, {
+        Map<String, dynamic>? body,
+        Map<String, String>? queryParams,
+      }) async {
     if (_isOffline) {
       throw Exception('No internet connection. Working in offline mode.');
     }
@@ -294,38 +294,7 @@ class ApiService {
       rethrow;
     }
   }
-  // Future<List<Farm>> getFarmsByUuid(String uuid) async {
-  //   try {
-  //     debugPrint('🌾 Loading farms for UUID: ${uuid.substring(0, 8)}...');
-  //
-  //     final response = await _makeRequest(
-  //       'GET',
-  //       '/farms', // Endpoint to get farms by UUID
-  //       queryParams: {'uuid': uuid}, // Pass UUID as query parameter
-  //     );
-  //
-  //     if (response['status'] == 'success') {
-  //       final List<dynamic> farmsData = response['data']['farms'] ?? [];
-  //       final farms = farmsData.map((json) => Farm.fromJson(json)).toList();
-  //
-  //       debugPrint('✅ Loaded ${farms.length} farms for user');
-  //       return farms;
-  //     } else {
-  //       throw Exception(response['message'] ?? 'Failed to load farms');
-  //     }
-  //   } catch (e) {
-  //     debugPrint('❌ Failed to load farms by UUID: $e');
-  //
-  //     // Fall back to local storage
-  //     final localFarms = await _localStorage.getFarms();
-  //     if (localFarms != null) {
-  //       debugPrint('📱 Loaded ${localFarms.length} farms from local storage');
-  //       return localFarms.map((json) => Farm.fromJson(json)).toList();
-  //     }
-  //
-  //     rethrow;
-  //   }
-  // }
+
   // Farms API
 // UPDATE: Replace the existing getFarms method with this
   Future<List<Farm>> getFarms() async {
@@ -404,6 +373,25 @@ class ApiService {
       if (farm != null) {
         return Farm.fromJson(farm);
       }
+      rethrow;
+    }
+  }
+
+  /// Get farm details with current season information
+  Future<Map<String, dynamic>> getFarmWithCurrentSeason(String farmId) async {
+    try {
+      debugPrint('🌐 Loading farm with current season: $farmId');
+
+      final response = await _makeRequest('GET', '/farms/$farmId');
+
+      if (response['status'] == 'success') {
+        debugPrint('✅ Farm and season data loaded successfully');
+        return response;
+      } else {
+        throw Exception(response['message'] ?? 'Failed to load farm data');
+      }
+    } catch (e) {
+      debugPrint('❌ Failed to load farm with season: $e');
       rethrow;
     }
   }
